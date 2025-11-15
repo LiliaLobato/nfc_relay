@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<div id="nfc-output" style="font-family:sans-serif;padding:2em;text-align:center">
+  Loading…
+</div>
+<script>
+  (function(){
+    const params = new URLSearchParams(location.search);
+    const key    = params.get('key') || '';
+    const script = 'https://script.google.com/macros/s/AKfycbw_DhXG5GD9aq8JvbrL8sfMYw_UNxCDCya9Ihu-lUVhoqKJoZsScAM9PuKim0SOrSgsoA/exec';
+    const out    = document.getElementById('nfc-output');
+    if (!key) return out.textContent = 'No key provided';
+    fetch(`${script}?key=${encodeURIComponent(key)}`)
+      .then(r => r.text())
+      .then(txt => out.textContent = txt)
+      .catch(err => out.textContent = 'Error: ' + err);
+  })();
+</script>
