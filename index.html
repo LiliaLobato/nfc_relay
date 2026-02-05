@@ -7,7 +7,7 @@
   (function(){
     const params = new URLSearchParams(location.search);
     const key    = params.get('key') || '';
-    const script = 'https://script.google.com/macros/s/AKfycbw_DhXG5GD9aq8JvbrL8sfMYw_UNxCDCya9Ihu-lUVhoqKJoZsScAM9PuKim0SOrSgsoA/exec';
+    const script = 'https://script.google.com/macros/s/AKfycbwW1GrbloG_eRjz-xTkpGkuCeKFlF-uSnagt-yWWE6gdcs3hQ-MPGPMlFNJs69OudSD6g/exec';
     const out    = document.getElementById('nfc-output');
     if (!key) return out.textContent = 'No key provided';
     fetch(`${script}?key=${encodeURIComponent(key)}`)
