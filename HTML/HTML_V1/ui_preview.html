@@ -6,7 +6,7 @@
   <title>Office Day Tracker — UI Preview</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
+  <style id="theme">
     :root {
       --bg:          #f5f3ff;
       --card:        #ffffff;
@@ -22,17 +22,34 @@
       --text:        #111827;
       --accent:      #7c3aed;
       --shadow:      0 2px 16px rgba(0,0,0,0.07);
+      --ring1: #a78bfa; --ring1-bg: rgba(167,139,250,0.15);
+      --ring2: #60a5fa; --ring2-bg: rgba(96,165,250,0.15);
+      --ring3: #34d399; --ring3-bg: rgba(52,211,153,0.15);
+      --ring4: #fb923c; --ring4-bg: rgba(251,146,60,0.15);
+      /* Chart palette — opacity variants of ring colors */
+      --chart-bar-fill:    rgba(167,139,250,0.25);
+      --chart-bar-stroke:  rgba(167,139,250,0.65);
+      --chart-dim-fill:    rgba(150,150,150,0.15);
+      --chart-dim-stroke:  rgba(150,150,150,0.40);
+      --chart-dim-point:   rgba(150,150,150,0.50);
+      --chart-ring1-dim:   rgba(167,139,250,0.40);
+      --chart-ring2-dim:   rgba(96,165,250,0.40);
+      --chart-ring3-dim:   rgba(52,211,153,0.40);
+      --chart-line-fill-1: rgba(167,139,250,0.10);
+      --chart-line-fill-2: rgba(96,165,250,0.10);
+      --chart-line-fill-3: rgba(52,211,153,0.10);
+      /* YTD donut chart colors — light and dark both in :root so cv() can read at init */
+      --ytd-office:   rgba(187,247,208,0.9);
+      --ytd-home:     rgba(191,219,254,0.9);
+      --ytd-vacation: rgba(254,215,170,0.9);
+      --ytd-holiday:  rgba(233,213,255,0.9);
+      --ytd-oncall:   rgba(253,230,138,0.9);
+      --ytd-dark-office:      #224a2a;
+      --ytd-dark-home:        #1e3252;
+      --ytd-dark-vacation-1:  #3a2010; --ytd-dark-vacation-2: #5a3418;
+      --ytd-dark-holiday-1:   #28204a; --ytd-dark-holiday-2:  #3a3068;
+      --ytd-dark-oncall-1:    #3a2810; --ytd-dark-oncall-2:   #5a4020;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      font-family: 'Inter', Arial, sans-serif;
-      color: var(--text);
-      min-height: 100vh;
-      padding: 24px 16px 48px;
-    }
-
-    /* ---- Dark mode ---- */
     body.dark {
       --bg:          #0f0f1a;
       --card:        #1c1c2e;
@@ -48,47 +65,55 @@
       --text:        #f0f0ff;
       --accent:      #a78bfa;
       --shadow:      0 2px 16px rgba(0,0,0,0.4);
+      --ring3: #52c4a8;
     }
     body.dark .cal-day.vacation {
-      background: repeating-linear-gradient(
-        45deg,
-        #3a2010 0px, #3a2010 4px,
-        #5a3418 4px, #5a3418 8px
-      );
+      background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px);
       color: #fed7aa;
     }
     body.dark .cal-day.holiday {
-      background: repeating-linear-gradient(
-        45deg,
-        #28204a 0px, #28204a 4px,
-        #3a3068 4px, #3a3068 8px
-      );
+      background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px);
       color: #d8b4fe;
     }
     body.dark .cal-day.oncalloff {
-      background: repeating-linear-gradient(
-        45deg,
-        #3a2810 0px, #3a2810 4px,
-        #5a4020 4px, #5a4020 8px
-      );
+      background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px);
       color: #fde68a;
     }
-    body.dark .rings-row .ring-item:nth-child(3) .ring-center { color: #52c4a8 !important; }
-    /* Unified legend key stripes in dark mode */
-    body.dark .legend-dot.d-vacation {
-      background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px) !important;
-    }
-    body.dark .legend-dot.d-holiday {
-      background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px) !important;
-    }
-    body.dark .legend-dot.d-oncall {
-      background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px) !important;
-    }
+    body.dark .legend-dot.d-vacation { background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px) !important; }
+    body.dark .legend-dot.d-holiday  { background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px) !important; }
+    body.dark .legend-dot.d-oncall   { background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px) !important; }
     body.dark .ytd-item.vacation-ytd { background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px) !important; }
     body.dark .ytd-item.holiday-ytd  { background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px) !important; }
     body.dark .ytd-item.oncall-ytd   { background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px) !important; }
+    body.dark .hm-cell.vacation  { background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px); }
+    body.dark .hm-cell.holiday   { background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px); }
+    body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px); }
     body.dark .card { border: 1px solid #2d2d40; }
     body.dark .error-card .error-msg { color: #6b7280; }
+    .recommendation           { background: #fee2e2; color: #dc2626; }
+    .recommendation.info      { background: #d1fae5; color: #065f46; }
+    body.dark .recommendation      { background: #3a1a1a; color: #f87171; }
+    body.dark .recommendation.info { background: #0a2e1a; color: #6ee7b7; }
+    .error-title.danger  { color: #dc2626; }
+    .error-title.neutral { color: var(--muted); }
+    body.dark .error-title.danger { color: #f87171; }
+    .cal-day.today                { outline: 2px solid #6b7280;  outline-offset: 1px; }
+    .cal-day.today.office         { outline: 2px solid #16a34a;  outline-offset: 1px; }
+    .cal-day.today.home           { outline: 2px solid #2563eb;  outline-offset: 1px; }
+    .cal-day.today.vacation       { outline: 2px solid #ea580c;  outline-offset: 1px; }
+    .cal-day.today.holiday        { outline: 2px solid #7c3aed;  outline-offset: 1px; }
+    .cal-day.today.oncalloff      { outline: 2px solid #d97706;  outline-offset: 1px; }
+    .cal-day.today.future         { outline: 2px solid #9ca3af;  outline-offset: 1px; }
+  </style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      font-family: 'Inter', Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
 
     /* ---- Dark mode toggle ---- */
     .theme-toggle {
@@ -131,7 +156,7 @@
         align-items: start;
       }
       .header-card   { grid-area: header; }
-      .status-card   { grid-area: status; }
+
       .rings-card    { grid-area: rings; }
       .days-card     { grid-area: days; }
       .calendar-card { grid-area: calendar; align-self: stretch; }
@@ -169,13 +194,8 @@
     .status-badge.oncall   { background: var(--oncall-bg);  color: var(--oncall-text); }
     .recommendation {
       margin-bottom: 12px; padding: 10px 16px;
-      background: #fee2e2; color: #dc2626;
       border-radius: 10px; font-size: 13px; font-weight: 600;
     }
-    body.dark .recommendation { background: #3a1a1a; color: #f87171; }
-    .error-title.danger  { color: #dc2626; }
-    .error-title.neutral { color: var(--muted); }
-    body.dark .error-title.danger { color: #f87171; }
     /* ---- Error cards ---- */
     .error-page {
       min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -226,13 +246,6 @@
       font-size: 12px; font-weight: 500;
     }
     .cal-day.empty       { background: transparent; }
-    .cal-day.today                { outline: 2px solid #6b7280; outline-offset: 1px; }
-    .cal-day.today.office         { outline: 2px solid #16a34a; outline-offset: 1px; }
-    .cal-day.today.home           { outline: 2px solid #2563eb; outline-offset: 1px; }
-    .cal-day.today.vacation       { outline: 2px solid #ea580c; outline-offset: 1px; }
-    .cal-day.today.holiday        { outline: 2px solid #7c3aed; outline-offset: 1px; }
-    .cal-day.today.oncalloff      { outline: 2px solid #d97706; outline-offset: 1px; }
-    .cal-day.today.future         { outline: 2px solid #9ca3af; outline-offset: 1px; }
     .cal-day.office      { background: var(--office-bg);   color: var(--office-text);   font-weight: 700; }
     .cal-day.home        { background: var(--home-bg);     color: var(--home-text); }
     .cal-day.vacation    { background: var(--vacation-bg); color: var(--vacation-text); }
@@ -317,9 +330,6 @@
     .hm-cell.vacation  { background: var(--vacation-bg); }
     .hm-cell.holiday   { background: var(--holiday-bg); }
     .hm-cell.oncalloff { background: var(--oncall-bg); }
-    body.dark .hm-cell.vacation  { background: repeating-linear-gradient(45deg, #3a2010 0px, #3a2010 4px, #5a3418 4px, #5a3418 8px); }
-    body.dark .hm-cell.holiday   { background: repeating-linear-gradient(45deg, #28204a 0px, #28204a 4px, #3a3068 4px, #3a3068 8px); }
-    body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #3a2810 0px, #3a2810 4px, #5a4020 4px, #5a4020 8px); }
   </style>
 </head>
 <body>
@@ -347,19 +357,19 @@
       <div class="card-label">Best of averages — WW 16</div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:#a78bfa">2.4</div></div>
+          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:#60a5fa">2.8</div></div>
+          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:#34d399">2.1</div></div>
+          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:#fb923c">71%</div></div>
+          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
           <div class="ring-label">Goal Hit Rate</div>
         </div>
       </div>
@@ -426,7 +436,7 @@
           </div>
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-o">Average trend</span>
+              <span class="chart-item-title" id="line-title-o">Last 4 weeks</span>
             </div>
             <div class="chart-body" id="cl-o"><canvas id="line-o" height="150"></canvas></div>
           </div>
@@ -505,29 +515,29 @@
 <div id="view-home" class="view">
   <div class="container">
     <div class="card header-card">
-      <div class="recommendation">Recommended to go to the office</div>
+      <div class="recommendation">Recommended to go to the office next week</div>
       <div class="status-badge home">Home Day</div>
       <div class="header-ww">WW16</div>
-      <div class="header-date">Wednesday, 15/Apr/2026 — 8:30 AM</div>
-      <div class="header-combined">WW16 · Wednesday, 15/Apr/2026 — 8:30 AM</div>
+      <div class="header-date">Friday, 17/Apr/2026 — 8:30 AM</div>
+      <div class="header-combined">WW16 · Friday, 17/Apr/2026 — 8:30 AM</div>
     </div>
     <div class="card rings-card">
       <div class="card-label">Best of averages — WW 16</div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-h-1"></canvas><div class="ring-center" style="color:#a78bfa">2.4</div></div>
+          <div class="ring-wrap"><canvas id="r-h-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-h-2"></canvas><div class="ring-center" style="color:#60a5fa">2.8</div></div>
+          <div class="ring-wrap"><canvas id="r-h-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-h-3"></canvas><div class="ring-center" style="color:#34d399">2.1</div></div>
+          <div class="ring-wrap"><canvas id="r-h-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-h-4"></canvas><div class="ring-center" style="color:#fb923c">71%</div></div>
+          <div class="ring-wrap"><canvas id="r-h-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
           <div class="ring-label">Goal Hit Rate</div>
         </div>
       </div>
@@ -539,13 +549,13 @@
       <div class="days-pills">
         <div class="day-pill">
           <div class="day-pill-count">2</div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
+          <div class="day-pill-label">Next week</div>
+          <div class="day-pill-ww">WW 17</div>
         </div>
         <div class="day-pill">
           <div class="day-pill-count">3</div>
-          <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
+          <div class="day-pill-label">Week after</div>
+          <div class="day-pill-ww">WW 18</div>
         </div>
       </div>
       <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
@@ -558,6 +568,7 @@
         <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
         <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
         <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
+        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
       </div>
     </div>
     <div class="card charts-card">
@@ -593,7 +604,7 @@
           </div>
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-h">Average trend</span>
+              <span class="chart-item-title" id="line-title-h">Last 4 weeks</span>
             </div>
             <div class="chart-body" id="cl-h"><canvas id="line-h" height="150"></canvas></div>
           </div>
@@ -664,19 +675,19 @@
       <div class="card-label">Best of averages — WW 16</div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-w-1"></canvas><div class="ring-center" style="color:#a78bfa">2.4</div></div>
+          <div class="ring-wrap"><canvas id="r-w-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-w-2"></canvas><div class="ring-center" style="color:#60a5fa">2.8</div></div>
+          <div class="ring-wrap"><canvas id="r-w-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-w-3"></canvas><div class="ring-center" style="color:#34d399">2.1</div></div>
+          <div class="ring-wrap"><canvas id="r-w-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-w-4"></canvas><div class="ring-center" style="color:#fb923c">71%</div></div>
+          <div class="ring-wrap"><canvas id="r-w-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
           <div class="ring-label">Goal Hit Rate</div>
         </div>
       </div>
@@ -707,6 +718,7 @@
         <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
         <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
         <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
+        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
       </div>
     </div>
     <div class="card charts-card">
@@ -742,7 +754,7 @@
           </div>
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-w">Average trend</span>
+              <span class="chart-item-title" id="line-title-w">Last 4 weeks</span>
             </div>
             <div class="chart-body" id="cl-w"><canvas id="line-w" height="150"></canvas></div>
           </div>
@@ -803,7 +815,7 @@
 <div id="view-logged" class="view">
   <div class="container">
     <div class="card header-card">
-      <div class="recommendation">Already logged</div>
+      <div class="recommendation info">Already logged</div>
       <div class="status-badge office">Office Day</div>
       <div class="header-ww">WW16</div>
       <div class="header-date">Thursday, 16/Apr/2026 — 2:45 PM</div>
@@ -813,19 +825,19 @@
       <div class="card-label">Best of averages — WW 16</div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-l-1"></canvas><div class="ring-center" style="color:#a78bfa">2.4</div></div>
+          <div class="ring-wrap"><canvas id="r-l-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-l-2"></canvas><div class="ring-center" style="color:#60a5fa">2.8</div></div>
+          <div class="ring-wrap"><canvas id="r-l-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-l-3"></canvas><div class="ring-center" style="color:#34d399">2.1</div></div>
+          <div class="ring-wrap"><canvas id="r-l-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-l-4"></canvas><div class="ring-center" style="color:#fb923c">71%</div></div>
+          <div class="ring-wrap"><canvas id="r-l-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
           <div class="ring-label">Goal Hit Rate</div>
         </div>
       </div>
@@ -836,14 +848,14 @@
       <div class="card-label">Days still needed</div>
       <div class="days-pills">
         <div class="day-pill">
-          <div class="day-pill-count">0</div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
-        </div>
-        <div class="day-pill">
           <div class="day-pill-count">2</div>
           <div class="day-pill-label">Next week</div>
           <div class="day-pill-ww">WW 17</div>
+        </div>
+        <div class="day-pill">
+          <div class="day-pill-count">1</div>
+          <div class="day-pill-label">Week after</div>
+          <div class="day-pill-ww">WW 18</div>
         </div>
       </div>
       <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
@@ -856,6 +868,7 @@
         <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
         <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
         <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
+        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
       </div>
     </div>
     <div class="card charts-card">
@@ -891,7 +904,7 @@
           </div>
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-l">Average trend</span>
+              <span class="chart-item-title" id="line-title-l">Last 4 weeks</span>
             </div>
             <div class="chart-body" id="cl-l"><canvas id="line-l" height="150"></canvas></div>
           </div>
@@ -964,7 +977,7 @@
   <div class="error-page">
     <div class="error-card">
       <div class="error-icon">🔒</div>
-      <div class="error-title danger">Nothing to see here</div>
+      <div class="error-title neutral">Nothing to see here</div>
       <div class="error-msg" style="margin-top:12px;">This page isn't available.<br/>If you got here by mistake, just close this tab.</div>
     </div>
   </div>
@@ -1048,14 +1061,26 @@
   }
 
   buildCalendar('cal-o', { 16:'office' },            16);
-  buildCalendar('cal-h', { 15:'home', 16:'future' },  15);
+  buildCalendar('cal-h', { 17:'home' },               17);
   buildCalendar('cal-w', { 16:'future' },             18);
   buildCalendar('cal-l', { 16:'office' },             16);
 
+  // ---- CSS variable reader (reads from whichever theme/mode is active at page load) ----
+  const cv = s => getComputedStyle(document.documentElement).getPropertyValue(s).trim();
+
   // ---- Rings ----
   const GOAL = 3;
-  const ringFill = ['#a78bfa','#60a5fa','#34d399','#fb923c'];
-  const ringBg   = ['rgba(167,139,250,0.15)','rgba(96,165,250,0.15)','rgba(52,211,153,0.15)','rgba(251,146,60,0.15)'];
+  const ringFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
+  const ringBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+  const chartBarFill    = cv('--chart-bar-fill');
+  const chartBarStroke  = cv('--chart-bar-stroke');
+  const chartDimFill    = cv('--chart-dim-fill');
+  const chartDimStroke  = cv('--chart-dim-stroke');
+  const chartDimPoint   = cv('--chart-dim-point');
+  const chartRing1Dim   = cv('--chart-ring1-dim');
+  const chartRing2Dim   = cv('--chart-ring2-dim');
+  const chartRing3Dim   = cv('--chart-ring3-dim');
+  const lineFillColors  = [cv('--chart-line-fill-1'), cv('--chart-line-fill-2'), cv('--chart-line-fill-3')];
 
   function makeRing(id, val, i) {
     const pct = Math.min(val / GOAL, 1);
@@ -1081,11 +1106,18 @@
       }
     });
   }
+  // Goal Hit Rate: actual YTD office days / sum of monthly Office Day Goals
+  // Office Day Goal per month = ceil(workDays × weekGoal/5), already in sheet
+  const GOAL_ACTUAL = 32, GOAL_TARGET = 50; // Jan(11/10) + Feb(12/12) + Mar(4/14) + Apr(5/14)
+  const goalPct   = GOAL_ACTUAL / GOAL_TARGET;
+  const goalLabel = Math.round(goalPct * 100) + '%';
+
   ['o','h','w','l'].forEach(v => {
     makeRing(`r-${v}-1`, 2.4, 0);
     makeRing(`r-${v}-2`, 2.8, 1);
     makeRing(`r-${v}-3`, 2.1, 2);
-    makeRingPct(`r-${v}-4`, 0.71, 3);
+    makeRingPct(`r-${v}-4`, goalPct, 3);
+    document.querySelector(`#r-${v}-4`).closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
   });
 
   // ---- Chart period data ----
@@ -1102,43 +1134,29 @@
   //                 Labels ending "/25" auto-gray.
   const periodData = {
     week: {
-      barLabel: 'This week (WW16)',
       barLabels: ['Mon','Tue','Wed','Thu','Fri'],
       barData:   [0, 1, 1, 1, 0],
-      lineLabel: 'Last 4 weeks (daily)',
       lineLabels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
       line1: [2.4,2.4,2.3,2.3,2.3, 2.3,2.2,2.2,2.2,2.2, 2.1,2.1,2.0,2.0,2.1, 2.1,2.1,2.0,2.0,2.1],
       line2: [3.0,3.0,2.9,2.9,2.9, 2.9,2.8,2.8,2.8,2.8, 2.6,2.6,2.5,2.5,2.6, 2.6,2.6,2.5,2.5,2.6],
       line3: [2.8,2.8,2.7,2.7,2.7, 2.7,2.6,2.6,2.6,2.6, 2.3,2.3,2.2,2.2,2.3, 2.3,2.3,2.2,2.2,2.3]
     },
     month: {
-      barLabel: 'April by week',
       barLabels: ['WW12','WW13','WW14','WW15','WW16'],
       barData:   [3, 2, 2, 2, 3],
-      lineLabel: 'Last 6 months',
       lineLabels: ['WW43/25','WW44/25','WW45/25','WW46/25','WW47/25','WW48/25','WW49/25','WW50/25','WW51/25','WW52/25','WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
       line1: [2.3,2.2,2.3,2.4,2.3,2.3,2.4,2.2,2.3,2.4, 2.0,2.1,2.1,2.2,2.1,2.2,2.2,2.3,2.2,2.2,2.3,2.4,2.2,2.2,2.3,2.4],
       line2: [2.8,2.7,2.8,2.9,2.8,2.8,2.9,2.7,2.8,2.9, 2.5,2.6,2.6,2.7,2.6,2.7,2.7,2.8,2.7,2.7,2.8,2.9,2.7,2.8,2.9,3.0],
       line3: [2.5,2.4,2.5,2.6,2.5,2.5,2.6,2.4,2.5,2.6, 2.2,2.3,2.3,2.4,2.3,2.4,2.4,2.5,2.4,2.4,2.5,2.6,2.5,2.5,2.6,2.8]
     },
     year: {
-      barLabel: 'Last 5 months',
       barLabels: ['Dec/25','Jan','Feb','Mar','Apr'],
       barData:   [5, 8, 10, 11, 9],
-      lineLabel: 'Last 12 months',
       lineLabels: ['May/25','Jun/25','Jul/25','Aug/25','Sep/25','Oct/25','Nov/25','Dec/25','Jan','Feb','Mar','Apr'],
       line1: [1.2,1.3,1.4,1.5,1.5,1.6,1.6,1.7,1.8,2.0,2.2,2.4],
       line2: [1.6,1.7,1.8,2.0,2.0,2.1,2.1,2.2,2.3,2.5,2.7,3.0],
       line3: [1.4,1.5,1.6,1.8,1.8,1.9,1.9,2.0,2.1,2.3,2.5,2.8]
     },
-    day: {
-      barLabel: 'This week (WW16)',
-      barLabels: ['Mon','Tue','Wed','Thu','Fri'],
-      barData:   [0, 1, 1, 1, 0],
-      lineLabel: 'Last 8 weeks',
-      lineLabels: ['WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
-      line1: [1.8,2.0,2.0,2.1,2.2,2.2,2.3,2.4], line2: [2.3,2.5,2.6,2.7,2.7,2.8,2.9,3.0], line3: [2.1,2.3,2.4,2.5,2.5,2.6,2.7,2.8]
-    }
   };
 
   // Store chart instances
@@ -1153,9 +1171,8 @@
   function paceHighlightArrays(n, labels) {
     const hi = n - 1;
     const prev = labels ? labels.map(l => l.endsWith('/25')) : Array(n).fill(false);
-    const gray = 'rgba(150,150,150,0.5)';
-    const colors = Array.from({length:n}, (_,i) => prev[i] ? gray : (i%3===2 ? 'rgba(167,139,250,0.4)' : '#a78bfa'));
-    colors[hi] = prev[hi] ? gray : '#a78bfa';
+    const colors = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===2 ? chartRing1Dim : ringFill[0]));
+    colors[hi] = prev[hi] ? chartDimPoint : ringFill[0];
     const sizes  = Array.from({length:n}, (_,i) => i%3===2 ? 5 : 3);
     sizes[hi] = 6;
     return { colors, sizes };
@@ -1165,14 +1182,14 @@
   const xTickColor = ctx => {
     const target = xHiLabel[ctx.chart.canvas.id];
     const label = ctx.label ?? ctx.chart.data.labels?.[ctx.index];
-    if (target && label === target) return '#a78bfa';
-    if (label && label.endsWith('/25')) return 'rgba(150,150,150,0.5)';
+    if (target && label === target) return ringFill[0];
+    if (label && label.endsWith('/25')) return chartDimPoint;
     return 'rgba(102,102,102,1)';
   };
 
   function barColorArrays(labels) {
-    const bg     = labels.map(l => l.endsWith('/25') ? 'rgba(150,150,150,0.15)' : 'rgba(167,139,250,0.25)');
-    const border = labels.map(l => l.endsWith('/25') ? 'rgba(150,150,150,0.4)'  : 'rgba(167,139,250,0.65)');
+    const bg     = labels.map(l => l.endsWith('/25') ? chartDimFill   : chartBarFill);
+    const border = labels.map(l => l.endsWith('/25') ? chartDimStroke : chartBarStroke);
     return { bg, border };
   }
 
@@ -1209,17 +1226,14 @@
   function linePointRadii(n, labels) {
     const big = 5, small = 2;
     const prev = labels ? labels.map(l => l.endsWith('/25')) : Array(n).fill(false);
-    const gray = 'rgba(150,150,150,0.5)';
     const s0 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===0 ? big : small));
     const s1 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===2 ? big : small));
     const s2 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===1 ? big : small));
-    const c0 = Array.from({length:n}, (_,i) => prev[i] ? gray : (i%3===0 ? 'rgba(167,139,250,0.4)' : '#a78bfa'));
-    const c1 = Array.from({length:n}, (_,i) => prev[i] ? gray : (i%3===2 ? 'rgba(96,165,250,0.4)'  : '#60a5fa'));
-    const c2 = Array.from({length:n}, (_,i) => prev[i] ? gray : (i%3===1 ? 'rgba(52,211,153,0.4)'  : '#34d399'));
+    const c0 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===0 ? chartRing1Dim : ringFill[0]));
+    const c1 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===2 ? chartRing2Dim : ringFill[1]));
+    const c2 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===1 ? chartRing3Dim : ringFill[2]));
     return { s0, s1, s2, c0, c1, c2 };
   }
-
-  const lineFillColors = ['rgba(167,139,250,0.1)', 'rgba(96,165,250,0.1)', 'rgba(52,211,153,0.1)'];
 
   function updateLineFill(chart) {
     const fillIdx = [0, 1, 2].find(i => !chart.getDatasetMeta(i).hidden);
@@ -1234,9 +1248,9 @@
     const d = periodData[period];
     const radii = linePointRadii(d.lineLabels.length, d.lineLabels);
     const datasets = [
-      { label:'Best 10/12', data:d.line1, borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,0.1)', borderWidth:2, pointRadius:radii.s0, pointBackgroundColor:radii.c0, tension:0.4, fill:true },
-      { label:'Best 8/12',  data:d.line2, borderColor:'#60a5fa', backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s1, pointBackgroundColor:radii.c1, tension:0.4 },
-      { label:'Best 8/10',  data:d.line3, borderColor:'#34d399', backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s2, pointBackgroundColor:radii.c2, tension:0.4 }
+      { label:'Best 10/12', data:d.line1, borderColor:ringFill[0], backgroundColor:lineFillColors[0], borderWidth:2, pointRadius:radii.s0, pointBackgroundColor:radii.c0, tension:0.4, fill:true },
+      { label:'Best 8/12',  data:d.line2, borderColor:ringFill[1], backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s1, pointBackgroundColor:radii.c1, tension:0.4 },
+      { label:'Best 8/10',  data:d.line3, borderColor:ringFill[2], backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s2, pointBackgroundColor:radii.c2, tension:0.4 }
     ];
     xHiLabel[id] = d.lineLabels[d.lineLabels.length - 1];
     const lineChart = new Chart(document.getElementById(id), {
@@ -1271,7 +1285,7 @@
   });
 
   // ---- Period switcher ----
-  const barTitles  = { day:'This week (WW16)', week:'Office days by weekday', month:'Office days by week', year:'Office days by month' };
+  const barTitles  = { week:'Office days by weekday', month:'Office days by week', year:'Office days by month' };
   const lineTitles = { week:'Last 4 weeks', month:'Last 6 months', year:'Last 12 months' };
 
   function setPeriod(view, period, btn) {
@@ -1341,9 +1355,6 @@
   }
 
   // ---- Pace Tracker ----
-  const paceWeeks  = ['WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'];
-  const paceActual = [0, 2, 5, 7, 10, 14, 17, 20, 23, 27, 30, 33, 35, 37, 40, 43];
-  const paceGoal   = paceWeeks.map((_,i) => (i+1)*3);
   const paceByPeriod = {
     week: {
       labels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
@@ -1361,9 +1372,6 @@
       goal:   [12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144]
     },
   };
-  // WW4=vacation, WW8=oncalloff, WW11=holiday — muted color; size is independent every-3rd pattern
-  const absenceWeeks = new Set([3, 7, 10]); // 0-indexed
-
   function makePaceChart(id, period = 'week') {
     const pd = paceByPeriod[period];
     const ph = paceHighlightArrays(pd.labels.length, pd.labels);
@@ -1376,8 +1384,8 @@
           {
             label: 'Actual',
             data: pd.actual,
-            borderColor: '#a78bfa',
-            backgroundColor: 'rgba(167,139,250,0.1)',
+            borderColor: ringFill[0],
+            backgroundColor: lineFillColors[0],
             borderWidth: 2,
             pointRadius: ph.sizes,
             pointBackgroundColor: ph.colors,
@@ -1428,9 +1436,9 @@
   const ytdLabels     = ['Office','Home','Vacation','Holiday','OnCall day off'];
   function makeStripePattern(c1, c2) {
     const sz = 8;
-    const cv = document.createElement('canvas');
-    cv.width = sz; cv.height = sz;
-    const ctx = cv.getContext('2d');
+    const patCanvas = document.createElement('canvas');
+    patCanvas.width = sz; patCanvas.height = sz;
+    const ctx = patCanvas.getContext('2d');
     ctx.fillStyle = c1;
     ctx.fillRect(0, 0, sz, sz);
     ctx.fillStyle = c2;
@@ -1439,16 +1447,18 @@
         if (((x + y) % sz) < sz / 2) ctx.fillRect(x, y, 1, 1);
     const tmp = document.createElement('canvas');
     tmp.width = 1; tmp.height = 1;
-    return tmp.getContext('2d').createPattern(cv, 'repeat');
+    return tmp.getContext('2d').createPattern(patCanvas, 'repeat');
   }
 
-  const ytdColorsLight = ['rgba(187,247,208,0.9)','rgba(191,219,254,0.9)','rgba(254,215,170,0.9)','rgba(233,213,255,0.9)','rgba(253,230,138,0.9)'];
+  const ytdColorsLight = [
+    cv('--ytd-office'), cv('--ytd-home'), cv('--ytd-vacation'), cv('--ytd-holiday'), cv('--ytd-oncall')
+  ];
   const ytdColorsDark  = [
-    '#224a2a',
-    '#1e3252',
-    makeStripePattern('#3a2010', '#5a3418'),
-    makeStripePattern('#28204a', '#3a3068'),
-    makeStripePattern('#3a2810', '#5a4020')
+    cv('--ytd-dark-office'),
+    cv('--ytd-dark-home'),
+    makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')),
+    makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')),
+    makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2'))
   ];
 
   function makeYtdChart(id) {
