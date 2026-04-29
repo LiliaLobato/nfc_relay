@@ -1,0 +1,14 @@
+    <div class="card charts-card">
+      <div class="card-label">Statistics</div>
+      <div class="period-tabs">
+        <button class="period-btn active" onclick="setPeriod('o','week',this)">Daily</button>
+        <button class="period-btn" onclick="setPeriod('o','month',this)">Weekly</button>
+        <button class="period-btn" onclick="setPeriod('o','year',this)">Monthly</button>
+      </div>
+      <div class="charts-grid">
+        <?!= include('ChartsRow1') ?>
+        <?!= include('ChartsPace') ?>
+        <?!= include('ChartsBestWorst') ?>
+        <?!= include('ChartsHeatmap') ?>
+      </div>
+    </div>

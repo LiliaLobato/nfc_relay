@@ -1,0 +1,97 @@
+  <style id="theme">
+    :root {
+
+      --bg:          #fef6f8;
+      --card:        #ffffff;
+      --office-bg:   #70C1E1; --office-text:   #0a3050;
+      --home-bg:     #FFF183; --home-text:     #5a4800;
+      --vacation-bg: #E8904A; --vacation-text: #5a2800;
+      --holiday-bg:  #82BA88; --holiday-text:  #1a4020;
+      --oncall-bg:   #F8B77C; --oncall-text:   #6a2e00;
+      --weekend-bg:  #fff8c0; --weekend-text:  #6a5800;
+      --warn-bg:     #fde0e8; --warn-text:     #8a1a3a;
+      --muted:       #a07880;
+      --separator:   #fde8ed;
+      --text:        #2d1a1f;
+      --accent:      #70C1E1;
+      --shadow:      0 2px 16px rgba(250,164,181,0.15);
+      --ring1: #FAA4B5; --ring1-bg: rgba(250,164,181,0.15);
+      --ring2: #70C1E1; --ring2-bg: rgba(112,193,225,0.15);
+      --ring3: #82BA88; --ring3-bg: rgba(130,186,136,0.15);
+      --ring4: #F8B77C; --ring4-bg: rgba(248,183,124,0.15);
+      /* Chart palette — opacity variants of ring colors */
+      --chart-bar-fill:    rgba(250,164,181,0.25);
+      --chart-bar-stroke:  rgba(250,164,181,0.65);
+      --chart-dim-fill:    rgba(150,150,150,0.15);
+      --chart-dim-stroke:  rgba(150,150,150,0.40);
+      --chart-dim-point:   rgba(150,150,150,0.50);
+      --chart-ring1-dim:   rgba(250,164,181,0.40);
+      --chart-ring2-dim:   rgba(112,193,225,0.40);
+      --chart-ring3-dim:   rgba(130,186,136,0.40);
+      --chart-line-fill-1: rgba(250,164,181,0.10);
+      --chart-line-fill-2: rgba(112,193,225,0.10);
+      --chart-line-fill-3: rgba(130,186,136,0.10);
+      /* YTD donut chart colors — light and dark both in :root so cv() can read at init */
+      --ytd-office:   rgba(112,193,225,0.9);
+      --ytd-home:     rgba(255,241,131,0.9);
+      --ytd-vacation: rgba(232,144,74,0.9);
+      --ytd-holiday:  rgba(130,186,136,0.9);
+      --ytd-oncall:   rgba(248,183,124,0.9);
+      --ytd-dark-office:      #1e5278;
+      --ytd-dark-home:        #4a4800;
+      --ytd-dark-vacation-1:  #3a1e00; --ytd-dark-vacation-2: #583000;
+      --ytd-dark-holiday-1:   #2a5030; --ytd-dark-holiday-2:  #3a7040;
+      --ytd-dark-oncall-1:    #4a2800; --ytd-dark-oncall-2:   #6a3a00;
+
+    }
+    body.dark {
+
+      --bg:          #1a0d10;
+      --card:        #2d1a1e;
+      --office-bg:   #1e5278; --office-text:   #70C1E1;
+      --home-bg:     #4a4800; --home-text:     #FFF183;
+      --vacation-bg: #3a1e00; --vacation-text: #E8904A;
+      --holiday-bg:  #2a5030; --holiday-text:  #82BA88;
+      --oncall-bg:   #4a2800; --oncall-text:   #F8B77C;
+      --weekend-bg:  #1a3a10; --weekend-text:  #c0e888;
+      --warn-bg:     #3a1820; --warn-text:     #f07090;
+      --muted:       #906878;
+      --separator:   #3d2428;
+      --text:        #fde8ed;
+      --accent:      #70C1E1;
+      --shadow:      0 2px 16px rgba(0,0,0,0.4);
+      --ring3: #52c4a8;
+
+    }
+    body.dark .cal-day.vacation  { background: repeating-linear-gradient(45deg, #3a1e00 0px, #3a1e00 4px, #583000 4px, #583000 8px); color: #E8904A; }
+    body.dark .legend-dot.d-vacation  { background: repeating-linear-gradient(45deg, #3a1e00 0px, #3a1e00 4px, #583000 4px, #583000 8px) !important; }
+    body.dark .ytd-item.vacation-ytd { background: repeating-linear-gradient(45deg, #3a1e00 0px, #3a1e00 4px, #583000 4px, #583000 8px) !important; }
+    body.dark .hm-cell.vacation  { background: repeating-linear-gradient(45deg, #3a1e00 0px, #3a1e00 4px, #583000 4px, #583000 8px); }
+    body.dark .cal-day.holiday   { background: repeating-linear-gradient(45deg, #2a5030 0px, #2a5030 4px, #3a7040 4px, #3a7040 8px); color: #82BA88; }
+    body.dark .legend-dot.d-holiday   { background: repeating-linear-gradient(45deg, #2a5030 0px, #2a5030 4px, #3a7040 4px, #3a7040 8px) !important; }
+    body.dark .ytd-item.holiday-ytd  { background: repeating-linear-gradient(45deg, #2a5030 0px, #2a5030 4px, #3a7040 4px, #3a7040 8px) !important; }
+    body.dark .hm-cell.holiday   { background: repeating-linear-gradient(45deg, #2a5030 0px, #2a5030 4px, #3a7040 4px, #3a7040 8px); }
+    body.dark .cal-day.oncalloff { background: repeating-linear-gradient(45deg, #4a2800 0px, #4a2800 4px, #6a3a00 4px, #6a3a00 8px); color: #F8B77C; }
+    body.dark .legend-dot.d-oncall    { background: repeating-linear-gradient(45deg, #4a2800 0px, #4a2800 4px, #6a3a00 4px, #6a3a00 8px) !important; }
+    body.dark .ytd-item.oncall-ytd   { background: repeating-linear-gradient(45deg, #4a2800 0px, #4a2800 4px, #6a3a00 4px, #6a3a00 8px) !important; }
+    body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #4a2800 0px, #4a2800 4px, #6a3a00 4px, #6a3a00 8px); }
+    body.dark .card { border: 1px solid #3d2428; }
+    body.dark .error-card .error-msg { color: #906878; }
+    body.dark .ring-center { filter: brightness(2.2); }
+    body.dark .recommendation { background: #3a1a1a; color: #f87171; }
+    body.dark .error-title.danger { color: #f87171; }
+    .recommendation           { background: #fee2e2; color: #dc2626; }
+    .recommendation.info      { background: #d1fae5; color: #065f46; }
+    body.dark .recommendation      { background: #3a1a1a; color: #f87171; }
+    body.dark .recommendation.info { background: #0a2e1a; color: #6ee7b7; }
+    .error-title.danger  { color: #dc2626; }
+    .error-title.neutral { color: var(--muted); }
+    body.dark .error-title.danger { color: #f87171; }
+    .cal-day.today                { outline: 2px solid #6b7280;  outline-offset: 1px; }
+    .cal-day.today.office         { outline: 2px solid #16a34a;  outline-offset: 1px; }
+    .cal-day.today.home           { outline: 2px solid #2563eb;  outline-offset: 1px; }
+    .cal-day.today.vacation       { outline: 2px solid #ea580c;  outline-offset: 1px; }
+    .cal-day.today.holiday        { outline: 2px solid #7c3aed;  outline-offset: 1px; }
+    .cal-day.today.oncalloff      { outline: 2px solid #d97706;  outline-offset: 1px; }
+    .cal-day.today.future         { outline: 2px solid #9ca3af;  outline-offset: 1px; }
+  </style>

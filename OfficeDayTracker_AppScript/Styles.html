@@ -1,0 +1,226 @@
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      font-family: 'Inter', Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    /* ---- Dark mode toggle ---- */
+    .theme-toggle {
+      position: fixed; top: 16px; right: 16px; z-index: 100;
+      background: var(--card); border: none; border-radius: 999px;
+      padding: 8px 14px; font-size: 18px; cursor: pointer;
+      box-shadow: var(--shadow); transition: all 0.2s;
+    }
+
+    /* ---- View tabs ---- */
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 28px; }
+    .tab-btn {
+      padding: 8px 20px; border-radius: 999px; border: none;
+      background: white; color: var(--muted);
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      cursor: pointer; box-shadow: var(--shadow); transition: all 0.2s;
+    }
+    .tab-btn.active { background: var(--accent); color: white; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ---- Grid layout ---- */
+    .container {
+      max-width: 430px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    @media (min-width: 768px) {
+      body { padding: 40px 32px 64px; }
+      .container {
+        max-width: 900px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto auto auto;
+        grid-template-areas:
+          "header   header"
+          "rings    calendar"
+          "days     calendar"
+          "charts   charts";
+        gap: 12px;
+        align-items: start;
+      }
+      .header-card   { grid-area: header; }
+
+      .rings-card    { grid-area: rings; }
+      .days-card     { grid-area: days; }
+      .calendar-card { grid-area: calendar; align-self: stretch; }
+      .charts-card   { grid-area: charts; }
+    }
+
+    /* ---- Card base ---- */
+    .card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 20px; }
+    .card-label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 16px; text-align: center;
+    }
+
+    /* ---- Header ---- */
+    .header-card { text-align: center; padding: 20px; }
+    .header-date     { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .header-ww       { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+    .header-combined { display: none; font-size: 13px; color: var(--muted); margin-top: 10px; }
+    @media (min-width: 768px) {
+      .header-ww, .header-date { display: none; }
+      .header-combined { display: block; }
+    }
+
+    /* ---- Status badge ---- */
+    .status-badge {
+      display: inline-block; border-radius: 16px;
+      padding: 16px 40px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+    }
+    .status-badge.office   { background: var(--office-bg);  color: var(--office-text); }
+    .status-badge.home     { background: var(--home-bg);    color: var(--home-text); }
+    .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); font-size:16px; line-height:1.6; padding:18px 28px; }
+    .status-badge.holiday  { background: var(--holiday-bg); color: var(--holiday-text); }
+    .status-badge.vacation { background: var(--vacation-bg);color: var(--vacation-text); }
+    .status-badge.oncall   { background: var(--oncall-bg);  color: var(--oncall-text); }
+    .recommendation {
+      margin-bottom: 12px; padding: 10px 16px;
+      border-radius: 10px; font-size: 13px; font-weight: 600;
+    }
+    /* ---- Error cards ---- */
+    .error-page {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .error-card {
+      background: var(--card); border-radius: 20px; box-shadow: var(--shadow);
+      padding: 40px 32px; max-width: 380px; width: 100%; text-align: center;
+    }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .error-msg   { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ---- Rings ---- */
+    .rings-row { display: flex; justify-content: space-around; align-items: center; }
+    .ring-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ring-wrap { position: relative; width: 88px; height: 88px; }
+    .ring-wrap canvas { width: 88px !important; height: 88px !important; }
+    .ring-center {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px; font-weight: 700;
+    }
+    .ring-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .rings-row--four .ring-wrap { width: 70px; height: 70px; }
+    .rings-row--four .ring-wrap canvas { width: 70px !important; height: 70px !important; }
+    .rings-row--four .ring-center { font-size: 14px; }
+
+    /* ---- Days needed (mushed pills) ---- */
+    .days-pills {
+      display: flex; border-radius: 14px; overflow: hidden;
+      border: 1.5px solid var(--separator);
+    }
+    .day-pill { flex: 1; padding: 14px 8px; text-align: center; }
+    .day-pill + .day-pill { border-left: 1.5px solid var(--separator); }
+    .day-pill-count { font-size: 24px; font-weight: 700; }
+    .day-pill-label { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .day-pill-ww    { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ---- Calendar ---- */
+    .calendar-card { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .cal-title  { font-size: 15px; font-weight: 700; }
+    .cal-grid   { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-name { text-align: center; font-size: 10px; font-weight: 600; color: var(--muted); padding: 4px 0; }
+    .cal-day {
+      aspect-ratio: 1; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500;
+    }
+    .cal-day.empty       { background: transparent; }
+    .cal-day.office      { background: var(--office-bg);   color: var(--office-text);   font-weight: 700; }
+    .cal-day.home        { background: var(--home-bg);     color: var(--home-text); }
+    .cal-day.vacation    { background: var(--vacation-bg); color: var(--vacation-text); }
+    .cal-day.holiday     { background: var(--holiday-bg);  color: var(--holiday-text); }
+    .cal-day.oncalloff   { background: var(--oncall-bg);   color: var(--oncall-text); }
+    .cal-day.future      { color: var(--muted); background: var(--separator); }
+    .cal-day.weekend-day { color: var(--muted); }
+    .legend-dot.d-office   { background: var(--office-bg); }
+    .legend-dot.d-home     { background: var(--home-bg); }
+    .legend-dot.d-vacation { background: var(--vacation-bg); }
+    .legend-dot.d-holiday  { background: var(--holiday-bg); }
+    .legend-dot.d-oncall   { background: var(--oncall-bg); }
+    .cal-day.other-month { opacity: 0.25; }
+    .cal-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; justify-content: center; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+    .legend-dot  { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+
+    /* ---- Best/Worst pair (always side-by-side) ---- */
+    .bw-pair { display: flex; gap: 12px; grid-column: 1 / -1; }
+    .bw-pair > .chart-item { flex: 1; min-width: 0; }
+
+    /* ---- Statistics period tabs ---- */
+    .period-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .period-btn {
+      flex: 1; padding: 7px 4px; border-radius: 8px; border: none;
+      background: var(--separator); color: var(--muted);
+      font-family: inherit; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .period-btn.active { background: var(--accent); color: white; }
+
+    /* ---- Charts ---- */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 767px) { .charts-grid { grid-template-columns: 1fr; } }
+    .charts-col { display: flex; flex-direction: column; gap: 12px; }
+    .chart-item { border-radius: 14px; border: 1.5px solid var(--separator); overflow: hidden; }
+    .chart-item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 16px;
+    }
+    .chart-item-title { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .chart-body { padding: 0 16px 16px; }
+
+    /* ---- Absence stat ---- */
+    .absence-stat {
+      font-size: 12px; color: var(--muted); margin-top: 12px;
+      text-align: center; line-height: 1.5;
+    }
+
+    /* ---- Projection card body ---- */
+    .projection-text { font-size: 13px; line-height: 1.8; color: var(--muted); text-align: center; }
+    .projection-text strong { color: var(--accent); }
+    .absence-stat strong { color: var(--accent); }
+    /* Pace chart body needs explicit height for responsive fill */
+    [id^="cp-"].chart-body { position: relative; height: 200px; }
+
+    /* ---- Month cards ---- */
+    .month-stat { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .month-avg  { font-size: 12px; color: var(--muted); }
+
+    /* ---- YTD row ---- */
+    .ytd-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px auto 0; justify-content: center; max-width: 290px; }
+    .ytd-item { font-size: 11px; padding: 4px 8px; border-radius: 6px; }
+    .ytd-item.office-ytd   { background: var(--office-bg);   color: var(--office-text); }
+    .ytd-item.home-ytd     { background: var(--home-bg);     color: var(--home-text); }
+    .ytd-item.vacation-ytd { background: var(--vacation-bg); color: var(--vacation-text); }
+    .ytd-item.holiday-ytd  { background: var(--holiday-bg);  color: var(--holiday-text); }
+    .ytd-item.oncall-ytd   { background: var(--oncall-bg);   color: var(--oncall-text); }
+    .legend-item strong { color: var(--accent); }
+
+    /* ---- Weekday heatmap ---- */
+    .heatmap-wrap { overflow-x: auto; }
+    .heatmap {
+      display: grid; grid-template-columns: 32px repeat(5, 1fr);
+      gap: 3px; min-width: 260px;
+    }
+    .hm-head { font-size: 9px; color: var(--muted); text-align: center; font-weight: 600; padding: 2px 0; }
+    .hm-ww   { font-size: 9px; color: var(--muted); text-align: right; padding-right: 5px; line-height: 20px; }
+    .hm-cell { height: 20px; border-radius: 3px; background: var(--separator); }
+    .hm-cell.office    { background: var(--office-bg); }
+    .hm-cell.home      { background: var(--home-bg); }
+    .hm-cell.vacation  { background: var(--vacation-bg); }
+    .hm-cell.holiday   { background: var(--holiday-bg); }
+    .hm-cell.oncalloff { background: var(--oncall-bg); }
+  </style>

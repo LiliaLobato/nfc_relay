@@ -1,0 +1,99 @@
+  <style id="theme">
+    :root {
+
+      --bg:          #f5f0ff;
+      --card:        #ffffff;
+      --office-bg:   #c0c2f8; --office-text:   #352481;
+      --home-bg:     #dcdeff; --home-text:     #2a2d8a;
+      --vacation-bg: #f8c0e0; --vacation-text: #7a1a58;
+      --holiday-bg:  #e0c8e8; --holiday-text:  #4a2a68;
+      --oncall-bg:   #f5e0f2; --oncall-text:   #7a1a6a;
+      --weekend-bg:  #f5e0f2; --weekend-text:  #7a1a6a;
+      --warn-bg:     #f8d8f0; --warn-text:     #8a0a68;
+      --muted:       #8a80a8;
+      --separator:   #ede8f5;
+      --text:        #1e1840;
+      --accent:      #8D90E7;
+      --shadow:      0 2px 16px rgba(141,144,231,0.12);
+      --ring1: #8D90E7; --ring1-bg: rgba(141,144,231,0.15);
+      --ring2: #DC77BB; --ring2-bg: rgba(220,119,187,0.15);
+      --ring3: #CABFC7; --ring3-bg: rgba(202,191,199,0.15);
+      --ring4: #fb923c; --ring4-bg: rgba(251,146,60,0.15);
+      /* Chart palette — opacity variants of ring colors */
+      --chart-bar-fill:    rgba(141,144,231,0.25);
+      --chart-bar-stroke:  rgba(141,144,231,0.65);
+      --chart-dim-fill:    rgba(150,150,150,0.15);
+      --chart-dim-stroke:  rgba(150,150,150,0.40);
+      --chart-dim-point:   rgba(150,150,150,0.50);
+      --chart-ring1-dim:   rgba(141,144,231,0.40);
+      --chart-ring2-dim:   rgba(220,119,187,0.40);
+      --chart-ring3-dim:   rgba(202,191,199,0.40);
+      --chart-line-fill-1: rgba(141,144,231,0.10);
+      --chart-line-fill-2: rgba(220,119,187,0.10);
+      --chart-line-fill-3: rgba(202,191,199,0.10);
+      /* YTD donut chart colors — light and dark both in :root so cv() can read at init */
+      --ytd-office:   rgba(192,194,248,0.9);
+      --ytd-home:     rgba(220,222,255,0.9);
+      --ytd-vacation: rgba(248,192,224,0.9);
+      --ytd-holiday:  rgba(224,200,232,0.9);
+      --ytd-oncall:   rgba(245,224,242,0.9);
+      --ytd-dark-office:      #3a2858;
+      --ytd-dark-home:        #4a4888;
+      --ytd-dark-vacation-1:  #553050; --ytd-dark-vacation-2: #6e4068;
+      --ytd-dark-holiday-1:   #3e3c50; --ytd-dark-holiday-2:  #524f6a;
+      --ytd-dark-oncall-1:    #583858; --ytd-dark-oncall-2:   #704868;
+
+    }
+    body.dark {
+
+      --bg:          #252330;
+      --card:        #2f2c3e;
+      --office-bg:   #3a2858; --office-text:   #c0bcf8;
+      --home-bg:     #4a4888; --home-text:     #c8caff;
+      --vacation-bg: #553050; --vacation-text: #EDD1E6;
+      --holiday-bg:  #3e3c50; --holiday-text:  #CABFC7;
+      --oncall-bg:   #583858; --oncall-text:   #f0b8e0;
+      --weekend-bg:  #1a3a10; --weekend-text:  #c0e888;
+      --warn-bg:     #4a2848; --warn-text:     #e090c8;
+      --muted:       #8a86a8;
+      --separator:   #3a3750;
+      --text:        #e8e4f8;
+      --accent:      #8D90E7;
+      --shadow:      0 2px 16px rgba(0,0,0,0.3);
+      --ring3: #CABFC7;
+
+    }
+    body.dark .cal-day.vacation  { background: repeating-linear-gradient(45deg, #553050 0px, #553050 4px, #6e4068 4px, #6e4068 8px); color: #EDD1E6; }
+    body.dark .legend-dot.d-vacation  { background: repeating-linear-gradient(45deg, #553050 0px, #553050 4px, #6e4068 4px, #6e4068 8px) !important; }
+    body.dark .ytd-item.vacation-ytd { background: repeating-linear-gradient(45deg, #553050 0px, #553050 4px, #6e4068 4px, #6e4068 8px) !important; }
+    body.dark .hm-cell.vacation  { background: repeating-linear-gradient(45deg, #553050 0px, #553050 4px, #6e4068 4px, #6e4068 8px); }
+    body.dark .cal-day.holiday   { background: repeating-linear-gradient(45deg, #3e3c50 0px, #3e3c50 4px, #524f6a 4px, #524f6a 8px); color: #CABFC7; }
+    body.dark .legend-dot.d-holiday   { background: repeating-linear-gradient(45deg, #3e3c50 0px, #3e3c50 4px, #524f6a 4px, #524f6a 8px) !important; }
+    body.dark .ytd-item.holiday-ytd  { background: repeating-linear-gradient(45deg, #3e3c50 0px, #3e3c50 4px, #524f6a 4px, #524f6a 8px) !important; }
+    body.dark .hm-cell.holiday   { background: repeating-linear-gradient(45deg, #3e3c50 0px, #3e3c50 4px, #524f6a 4px, #524f6a 8px); }
+    body.dark .cal-day.oncalloff { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px); color: #f0b8e0; }
+    body.dark .legend-dot.d-oncall    { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px) !important; }
+    body.dark .ytd-item.oncall-ytd   { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px) !important; }
+    body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px); }
+    body.dark .card { border: 1px solid #3a3750; }
+    body.dark .error-card .error-msg { color: #7a78a8; }
+    body.dark .rings-row .ring-item:nth-child(1) .ring-center { filter: none; color: #8D90E7 !important; }
+    body.dark .rings-row .ring-item:nth-child(2) .ring-center { filter: none; color: #DC77BB !important; }
+    body.dark .rings-row .ring-item:nth-child(3) .ring-center { filter: none; color: #CABFC7 !important; }
+    body.dark .recommendation { background: #3a1a1a; color: #f87171; }
+    body.dark .error-title.danger { color: #f87171; }
+    .recommendation           { background: #fee2e2; color: #dc2626; }
+    .recommendation.info      { background: #d1fae5; color: #065f46; }
+    body.dark .recommendation      { background: #3a1a1a; color: #f87171; }
+    body.dark .recommendation.info { background: #0a2e1a; color: #6ee7b7; }
+    .error-title.danger  { color: #dc2626; }
+    .error-title.neutral { color: var(--muted); }
+    body.dark .error-title.danger { color: #f87171; }
+    .cal-day.today                { outline: 2px solid #6b7280;  outline-offset: 1px; }
+    .cal-day.today.office         { outline: 2px solid #16a34a;  outline-offset: 1px; }
+    .cal-day.today.home           { outline: 2px solid #2563eb;  outline-offset: 1px; }
+    .cal-day.today.vacation       { outline: 2px solid #ea580c;  outline-offset: 1px; }
+    .cal-day.today.holiday        { outline: 2px solid #7c3aed;  outline-offset: 1px; }
+    .cal-day.today.oncalloff      { outline: 2px solid #d97706;  outline-offset: 1px; }
+    .cal-day.today.future         { outline: 2px solid #9ca3af;  outline-offset: 1px; }
+  </style>

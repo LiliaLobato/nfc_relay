@@ -1,0 +1,590 @@
+<script>
+  // ---- Dark mode toggle ----
+  function toggleDark(btn) {
+    document.body.classList.toggle('dark');
+    const isDark = document.body.classList.contains('dark');
+    btn.textContent = isDark ? '☀️' : '🌙';
+    const newColors = isDark ? ytdColorsDark : ytdColorsLight;
+    ['o','h','w','l'].forEach(v => {
+      const c = charts[`ytd-${v}`];
+      if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
+    });
+  }
+
+  // ---- View switcher ----
+  function showView(name, btn) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ---- Calendar ----
+  const aprilTypes = {
+    1:'home', 2:'office', 3:'office',
+    4:'weekend-day', 5:'weekend-day',
+    6:'home', 7:'office', 8:'home', 9:'office', 10:'office',
+    11:'weekend-day', 12:'weekend-day',
+    13:'home', 14:'office', 15:'home', 16:'office', 17:'future',
+    18:'weekend-day', 19:'weekend-day',
+    20:'office',21:'home',22:'vacation',23:'holiday',24:'oncalloff',
+    25:'weekend-day',26:'weekend-day',
+    27:'future',28:'future',29:'future',30:'future'
+  };
+
+  // April 2026: starts Wednesday (offset 2), ends Thursday (30 days)
+  // Prev month overflow: Mar 30 (Mon), Mar 31 (Tue)
+  // Next month overflow: May 1 (Fri), May 2 (Sat), May 3 (Sun)
+  const prevDays = [
+    { day: 30, type: 'office' },  // Mar 30 Mon — mock: office
+    { day: 31, type: 'home'   }   // Mar 31 Tue — mock: home
+  ];
+  const nextDays = [
+    { day: 1, type: 'future'      }, // May 1 Fri
+    { day: 2, type: 'weekend-day' }, // May 2 Sat
+    { day: 3, type: 'weekend-day' }  // May 3 Sun
+  ];
+
+  function buildCalendar(id, overrides, todayNum) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+      const h = document.createElement('div');
+      h.className = 'cal-day-name'; h.textContent = d; el.appendChild(h);
+    });
+    // Previous month overflow
+    prevDays.forEach(({ day, type }) => {
+      const cell = document.createElement('div');
+      cell.className = `cal-day ${type} other-month`;
+      cell.textContent = day;
+      el.appendChild(cell);
+    });
+    // Current month days
+    for (let d = 1; d <= 30; d++) {
+      const cell = document.createElement('div');
+      const type = (overrides && overrides[d]) || aprilTypes[d] || 'future';
+      cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
+      cell.textContent = d;
+      el.appendChild(cell);
+    }
+    // Next month overflow
+    nextDays.forEach(({ day, type }) => {
+      const cell = document.createElement('div');
+      cell.className = `cal-day ${type} other-month`;
+      cell.textContent = day;
+      el.appendChild(cell);
+    });
+  }
+
+  buildCalendar('cal-o', { 16:'office' },            16);
+  buildCalendar('cal-h', { 17:'home' },               17);
+  buildCalendar('cal-w', { 16:'future' },             18);
+  buildCalendar('cal-l', { 16:'office' },             16);
+
+  // ---- CSS variable reader (reads from whichever theme/mode is active at page load) ----
+  const cv = s => getComputedStyle(document.documentElement).getPropertyValue(s).trim();
+
+  // ---- Rings ----
+  const GOAL = 3;
+  const ringFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
+  const ringBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+  const chartBarFill    = cv('--chart-bar-fill');
+  const chartBarStroke  = cv('--chart-bar-stroke');
+  const chartDimFill    = cv('--chart-dim-fill');
+  const chartDimStroke  = cv('--chart-dim-stroke');
+  const chartDimPoint   = cv('--chart-dim-point');
+  const chartRing1Dim   = cv('--chart-ring1-dim');
+  const chartRing2Dim   = cv('--chart-ring2-dim');
+  const chartRing3Dim   = cv('--chart-ring3-dim');
+  const lineFillColors  = [cv('--chart-line-fill-1'), cv('--chart-line-fill-2'), cv('--chart-line-fill-3')];
+
+  function makeRing(id, val, i) {
+    const pct = Math.min(val / GOAL, 1);
+    new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
+      options: {
+        cutout:'72%', responsive:false,
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+        animation:{ duration:2000, easing:'easeOutQuart' }
+      }
+    });
+  }
+  function makeRingPct(id, pct, i) {
+    pct = Math.min(pct, 1);
+    new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
+      options: {
+        cutout:'72%', responsive:false,
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+        animation:{ duration:2000, easing:'easeOutQuart' }
+      }
+    });
+  }
+  // Goal Hit Rate: actual YTD office days / sum of monthly Office Day Goals
+  // Office Day Goal per month = ceil(workDays × weekGoal/5), already in sheet
+  const GOAL_ACTUAL = 32, GOAL_TARGET = 50; // Jan(11/10) + Feb(12/12) + Mar(4/14) + Apr(5/14)
+  const goalPct   = GOAL_ACTUAL / GOAL_TARGET;
+  const goalLabel = Math.round(goalPct * 100) + '%';
+
+  ['o','h','w','l'].forEach(v => {
+    if (!document.getElementById(`r-${v}-1`)) return;
+    makeRing(`r-${v}-1`, 2.4, 0);
+    makeRing(`r-${v}-2`, 2.8, 1);
+    makeRing(`r-${v}-3`, 2.1, 2);
+    makeRingPct(`r-${v}-4`, goalPct, 3);
+    document.querySelector(`#r-${v}-4`).closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
+  });
+
+  // ---- Chart period data ----
+  // NOTE: All data below is simulated for UI preview purposes.
+  // When connected to live Google Sheet data, replace with real values following these rules:
+  //   Daily tab  — always show last 4 weeks (20 working days). If current week ≤ WW3, backfill
+  //                from last year. Last-year dates: "D/Mon/YY" (e.g. 15/Dec/25).
+  //                Current-year dates: "D/Mon" (e.g. 5/Jan). Labels ending "/25" auto-gray.
+  //   Weekly tab — always show last 5 weeks (bar) and last 6 months (line + pace). If current
+  //                week ≤ WW4, backfill from last year. Last-year WW labels: "WWn/25"
+  //                (e.g. WW51/25). Current-year: "WWn". Labels ending "/25" auto-gray.
+  //   Monthly tab — always show last 5 months (bar) and last 12 months (line + pace). Last-year
+  //                 months: "Mon/25" (e.g. Dec/25). Current-year months: "Mon" (e.g. Jan).
+  //                 Labels ending "/25" auto-gray.
+  const periodData = {
+    week: {
+      barLabels: ['Mon','Tue','Wed','Thu','Fri'],
+      barData:   [0, 1, 1, 1, 0],
+      lineLabels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
+      line1: [2.4,2.4,2.3,2.3,2.3, 2.3,2.2,2.2,2.2,2.2, 2.1,2.1,2.0,2.0,2.1, 2.1,2.1,2.0,2.0,2.1],
+      line2: [3.0,3.0,2.9,2.9,2.9, 2.9,2.8,2.8,2.8,2.8, 2.6,2.6,2.5,2.5,2.6, 2.6,2.6,2.5,2.5,2.6],
+      line3: [2.8,2.8,2.7,2.7,2.7, 2.7,2.6,2.6,2.6,2.6, 2.3,2.3,2.2,2.2,2.3, 2.3,2.3,2.2,2.2,2.3]
+    },
+    month: {
+      barLabels: ['WW12','WW13','WW14','WW15','WW16'],
+      barData:   [3, 2, 2, 2, 3],
+      lineLabels: ['WW43/25','WW44/25','WW45/25','WW46/25','WW47/25','WW48/25','WW49/25','WW50/25','WW51/25','WW52/25','WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
+      line1: [2.3,2.2,2.3,2.4,2.3,2.3,2.4,2.2,2.3,2.4, 2.0,2.1,2.1,2.2,2.1,2.2,2.2,2.3,2.2,2.2,2.3,2.4,2.2,2.2,2.3,2.4],
+      line2: [2.8,2.7,2.8,2.9,2.8,2.8,2.9,2.7,2.8,2.9, 2.5,2.6,2.6,2.7,2.6,2.7,2.7,2.8,2.7,2.7,2.8,2.9,2.7,2.8,2.9,3.0],
+      line3: [2.5,2.4,2.5,2.6,2.5,2.5,2.6,2.4,2.5,2.6, 2.2,2.3,2.3,2.4,2.3,2.4,2.4,2.5,2.4,2.4,2.5,2.6,2.5,2.5,2.6,2.8]
+    },
+    year: {
+      barLabels: ['Dec/25','Jan','Feb','Mar','Apr'],
+      barData:   [5, 8, 10, 11, 9],
+      lineLabels: ['May/25','Jun/25','Jul/25','Aug/25','Sep/25','Oct/25','Nov/25','Dec/25','Jan','Feb','Mar','Apr'],
+      line1: [1.2,1.3,1.4,1.5,1.5,1.6,1.6,1.7,1.8,2.0,2.2,2.4],
+      line2: [1.6,1.7,1.8,2.0,2.0,2.1,2.1,2.2,2.3,2.5,2.7,3.0],
+      line3: [1.4,1.5,1.6,1.8,1.8,1.9,1.9,2.0,2.1,2.3,2.5,2.8]
+    },
+  };
+
+  // Store chart instances
+  const charts = {};
+
+  // ---- Current date references ----
+  const _today = new Date();
+  const _todayDow = _today.getDay(); // 0=Sun,1=Mon…
+  const TODAY_DOW_IDX = _todayDow === 0 ? -1 : _todayDow - 1; // Mon=0…Fri=4, -1=weekend
+  const DOW_LABELS = ['Mon','Tue','Wed','Thu','Fri'];
+
+  function paceHighlightArrays(n, labels) {
+    const hi = n - 1;
+    const prev = labels ? labels.map(l => l.endsWith('/25')) : Array(n).fill(false);
+    const colors = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===2 ? chartRing1Dim : ringFill[0]));
+    colors[hi] = prev[hi] ? chartDimPoint : ringFill[0];
+    const sizes  = Array.from({length:n}, (_,i) => i%3===2 ? 5 : 3);
+    sizes[hi] = 6;
+    return { colors, sizes };
+  }
+
+  const xHiLabel = {}; // canvasId → highlight label string (match by label, not index — index breaks with autoSkip)
+  const xTickColor = ctx => {
+    const target = xHiLabel[ctx.chart.canvas.id];
+    const label = ctx.label ?? ctx.chart.data.labels?.[ctx.index];
+    if (target && label === target) return ringFill[0];
+    if (label && label.endsWith('/25')) return chartDimPoint;
+    return 'rgba(102,102,102,1)';
+  };
+
+  function barColorArrays(labels) {
+    const bg     = labels.map(l => l.endsWith('/25') ? chartDimFill   : chartBarFill);
+    const border = labels.map(l => l.endsWith('/25') ? chartDimStroke : chartBarStroke);
+    return { bg, border };
+  }
+
+  function makeBarChart(id, period) {
+    const d = periodData[period];
+    xHiLabel[id] = period === 'week'
+      ? (TODAY_DOW_IDX >= 0 ? DOW_LABELS[TODAY_DOW_IDX] : null)
+      : d.barLabels[d.barLabels.length - 1];
+    const bc = barColorArrays(d.barLabels);
+    const chart = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: d.barLabels,
+        datasets: [{ label:'Office days', data: d.barData,
+          backgroundColor: bc.bg, borderColor: bc.border, borderWidth:1.5, borderRadius:6 }]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{display:false} },
+        scales:{
+          y:{ beginAtZero:true, title:{ display: true, text:'Office days', font:{size:10}, color:'rgba(102,102,102,0.8)' }, ticks:{display: true, stepSize:1, font:{size:11}}, grid:{color:'rgba(128,128,128,0.15)'} },
+          x:{ ticks:{font:{size:10}, maxRotation:45, autoSkip:false, color:xTickColor}, grid:{display:false} }
+        }
+      }
+    });
+    if (period === 'week') {
+      chart.options.scales.y.ticks.display = false;
+    }
+    return chart;
+  }
+
+  // Rotating spotlight: each position, one line gets a big dot, the others stay small.
+  // Rotation order per index mod 3: 0=purple(10/12), 1=green(8/10), 2=blue(8/12)
+  function linePointRadii(n, labels) {
+    const big = 5, small = 2;
+    const prev = labels ? labels.map(l => l.endsWith('/25')) : Array(n).fill(false);
+    const s0 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===0 ? big : small));
+    const s1 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===2 ? big : small));
+    const s2 = Array.from({length:n}, (_,i) => prev[i] ? small : (i%3===1 ? big : small));
+    const c0 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===0 ? chartRing1Dim : ringFill[0]));
+    const c1 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===2 ? chartRing2Dim : ringFill[1]));
+    const c2 = Array.from({length:n}, (_,i) => prev[i] ? chartDimPoint : (i%3===1 ? chartRing3Dim : ringFill[2]));
+    return { s0, s1, s2, c0, c1, c2 };
+  }
+
+  function updateLineFill(chart) {
+    const fillIdx = [0, 1, 2].find(i => !chart.getDatasetMeta(i).hidden);
+    chart.data.datasets.forEach((ds, i) => {
+      ds.fill = i === fillIdx;
+      ds.backgroundColor = i === fillIdx ? lineFillColors[i] : 'transparent';
+    });
+    chart.update('none');
+  }
+
+  function makeLineChart(id, period) {
+    const d = periodData[period];
+    const radii = linePointRadii(d.lineLabels.length, d.lineLabels);
+    const datasets = [
+      { label:'Best 10/12', data:d.line1, borderColor:ringFill[0], backgroundColor:lineFillColors[0], borderWidth:2, pointRadius:radii.s0, pointBackgroundColor:radii.c0, tension:0.4, fill:true },
+      { label:'Best 8/12',  data:d.line2, borderColor:ringFill[1], backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s1, pointBackgroundColor:radii.c1, tension:0.4 },
+      { label:'Best 8/10',  data:d.line3, borderColor:ringFill[2], backgroundColor:'transparent', borderWidth:2, pointRadius:radii.s2, pointBackgroundColor:radii.c2, tension:0.4 }
+    ];
+    xHiLabel[id] = d.lineLabels[d.lineLabels.length - 1];
+    const lineChart = new Chart(document.getElementById(id), {
+      type: 'line',
+      data: { labels: d.lineLabels, datasets },
+      options: {
+        responsive:true,
+        plugins:{
+          legend:{
+            labels:{ font:{size:11}, boxWidth:12 },
+            onClick(e, legendItem, legend) {
+              const chart = legend.chart;
+              const meta = chart.getDatasetMeta(legendItem.datasetIndex);
+              meta.hidden = !meta.hidden;
+              updateLineFill(chart);
+            }
+          }
+        },
+        scales:{
+          y:{ min:1, max:3.5, title:{ display:true, text:'Average', font:{size:10}, color:'rgba(102,102,102,0.8)' }, ticks:{font:{size:11}}, grid:{color:'rgba(128,128,128,0.15)'} },
+          x:{ ticks:{font:{size:10}, maxRotation:45, color:xTickColor}, grid:{display:false} }
+        }
+      }
+    });
+    return lineChart;
+  }
+
+  // Init all charts on week period
+  ['o','h','w','l'].forEach(v => {
+    if (!document.getElementById(`bar-${v}`)) return;
+    charts[`bar-${v}`]  = makeBarChart(`bar-${v}`,  'week');
+    charts[`line-${v}`] = makeLineChart(`line-${v}`, 'week');
+  });
+
+  // ---- Period switcher ----
+  const barTitles  = { week:'Office days by weekday', month:'Office days by week', year:'Office days by month' };
+  const lineTitles = { week:'Last 4 weeks', month:'Last 6 months', year:'Last 12 months' };
+
+  function setPeriod(view, period, btn) {
+    // Update active button within this charts card
+    btn.closest('.period-tabs').querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const d = periodData[period];
+
+    // Update bar chart
+    const bar = charts[`bar-${view}`];
+    const bc = barColorArrays(d.barLabels);
+    bar.data.labels = d.barLabels;
+    bar.data.datasets[0].data = d.barData;
+    bar.data.datasets[0].backgroundColor = bc.bg;
+    bar.data.datasets[0].borderColor = bc.border;
+    xHiLabel[`bar-${view}`] = period === 'week'
+      ? (TODAY_DOW_IDX >= 0 ? DOW_LABELS[TODAY_DOW_IDX] : null)
+      : d.barLabels[d.barLabels.length - 1];
+    bar.options.scales.y.ticks.display = period !== 'week';
+    bar.update();
+    document.getElementById(`bar-title-${view}`).textContent = barTitles[period];
+
+    // Update line chart
+    const line = charts[`line-${view}`];
+    const radii = linePointRadii(d.lineLabels.length, d.lineLabels);
+    line.data.labels = d.lineLabels;
+    line.data.datasets[0].data = d.line1; line.data.datasets[0].pointRadius = radii.s0; line.data.datasets[0].pointBackgroundColor = radii.c0;
+    line.data.datasets[1].data = d.line2; line.data.datasets[1].pointRadius = radii.s1; line.data.datasets[1].pointBackgroundColor = radii.c1;
+    line.data.datasets[2].data = d.line3; line.data.datasets[2].pointRadius = radii.s2; line.data.datasets[2].pointBackgroundColor = radii.c2;
+    xHiLabel[`line-${view}`] = d.lineLabels[d.lineLabels.length - 1];
+    line.update();
+    document.getElementById(`line-title-${view}`).textContent = lineTitles[period];
+
+    // Update pace chart
+    const pd = paceByPeriod[period];
+    const pace = charts[`pace-${view}`];
+    const ph = paceHighlightArrays(pd.labels.length, pd.labels);
+    pace.data.labels = pd.labels;
+    pace.data.datasets[0].data = pd.actual;
+    pace.data.datasets[0].pointRadius = ph.sizes;
+    pace.data.datasets[0].pointBackgroundColor = ph.colors;
+    pace.data.datasets[1].data = pd.goal;
+    xHiLabel[`pace-${view}`] = pd.labels[pd.labels.length - 1];
+    pace.update();
+
+    // Update YTD split donut, title, and row counts
+    const ytdData = ytdByPeriod[period];
+    const ytdChart = charts[`ytd-${view}`];
+    ytdChart.data.datasets[0].data = ytdData;
+    ytdChart.update();
+    const ytdTitleEl = document.querySelector(`#cy-${view}`).closest('.chart-item').querySelector('.chart-item-title');
+    ytdTitleEl.textContent = ytdTitles[period];
+    const ytdRow = document.querySelector(`#cy-${view} .ytd-row`);
+    const [off, hm, vac, hol, oc] = ytdData;
+    ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${off}</strong></span><span class="ytd-item home-ytd">Home <strong>${hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${oc}</strong></span>`;
+
+    const chartsCard = btn.closest('.charts-card');
+    chartsCard.querySelectorAll('.bw-weekday').forEach(el => el.style.display = period === 'week'  ? 'flex' : 'none');
+    chartsCard.querySelectorAll('.bw-weekly') .forEach(el => el.style.display = period === 'month' ? 'flex' : 'none');
+    chartsCard.querySelectorAll('.bw-monthly').forEach(el => el.style.display = period === 'year'  ? 'flex' : 'none');
+
+    // Rebuild heatmap for new period window and update title
+    buildHeatmap(`heatmap-${view}`, hmDataByPeriod[period]);
+    const hmTitleEl = document.querySelector(`#heatmap-${view}`).closest('.chart-item').querySelector('.chart-item-title');
+    hmTitleEl.textContent = hmTitles[period];
+  }
+
+  // ---- Pace Tracker ----
+  const paceByPeriod = {
+    week: {
+      labels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
+      actual: [0,0,1,2,3, 3,3,3,3,3, 4,5,6,7,7, 8,9,10,11,11],
+      goal:   [0.6,1.2,1.8,2.4,3.0, 3.6,4.2,4.8,5.4,6.0, 6.6,7.2,7.8,8.4,9.0, 9.6,10.2,10.8,11.4,12.0]
+    },
+    month: {
+      labels: ['WW43/25','WW44/25','WW45/25','WW46/25','WW47/25','WW48/25','WW49/25','WW50/25','WW51/25','WW52/25','WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
+      actual: [2,4,6,8,10,12,14,14,16,18, 18,20,23,25,28,32,35,38,41,45,48,51,53,55,58,61],
+      goal:   [3,6,9,12,15,18,21,24,27,30, 33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78]
+    },
+    year:  {
+      labels: ['May/25','Jun/25','Jul/25','Aug/25','Sep/25','Oct/25','Nov/25','Dec/25','Jan','Feb','Mar','Apr'],
+      actual: [8, 18, 24, 34, 44, 54, 62, 67, 75, 85, 96, 105],
+      goal:   [12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144]
+    },
+  };
+  function makePaceChart(id, period = 'week') {
+    const pd = paceByPeriod[period];
+    const ph = paceHighlightArrays(pd.labels.length, pd.labels);
+    xHiLabel[id] = pd.labels[pd.labels.length - 1];
+    const paceChart = new Chart(document.getElementById(id), {
+      type: 'line',
+      data: {
+        labels: pd.labels,
+        datasets: [
+          {
+            label: 'Actual',
+            data: pd.actual,
+            borderColor: ringFill[0],
+            backgroundColor: lineFillColors[0],
+            borderWidth: 2,
+            pointRadius: ph.sizes,
+            pointBackgroundColor: ph.colors,
+            tension: 0.3,
+            fill: true
+          },
+          {
+            label: 'Goal pace',
+            data: pd.goal,
+            borderColor: 'rgba(156,163,175,0.5)',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            tension: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { font:{size:11}, boxWidth:12 }, onClick: () => {} } },
+        scales: {
+          y: { beginAtZero: true, title:{ display:true, text:'Office days', font:{size:10}, color:'rgba(102,102,102,0.8)' }, ticks:{font:{size:11}}, grid:{color:'rgba(128,128,128,0.15)'} },
+          x: { ticks:{font:{size:9}, maxRotation:45, color:xTickColor}, grid:{display:false} }
+        }
+      }
+    });
+    return paceChart;
+  }
+  ['o','h','w','l'].forEach(v => { if (document.getElementById(`pace-${v}`)) charts[`pace-${v}`] = makePaceChart(`pace-${v}`, 'week'); });
+
+  // Replay animation at correct size after ResizeObserver has settled
+  setTimeout(() => {
+    ['bar-o', 'line-o', 'pace-o'].forEach(id => {
+      if (charts[id]) { charts[id].reset(); charts[id].update(); }
+    });
+  }, 150);
+
+  // ---- YTD Split donut ----
+  // [Office, Home, Vacation, Holiday, OnCall day off]
+  const ytdByPeriod = {
+    week:  [11, 7,   0,  2,  0],   // last 4 weeks  (20 working days)
+    month: [61, 58,  5,  4,  2],   // last 6 months (26 weeks = 130 days)
+    year:  [105, 128, 10, 10, 7],  // last 12 months (~260 days)
+  };
+  const ytdTitles = { week:'Last 4 weeks split', month:'Last 6 months split', year:'Last 12 months split' };
+  const ytdLabels     = ['Office','Home','Vacation','Holiday','OnCall day off'];
+  function makeStripePattern(c1, c2) {
+    const sz = 8;
+    const patCanvas = document.createElement('canvas');
+    patCanvas.width = sz; patCanvas.height = sz;
+    const ctx = patCanvas.getContext('2d');
+    ctx.fillStyle = c1;
+    ctx.fillRect(0, 0, sz, sz);
+    ctx.fillStyle = c2;
+    for (let y = 0; y < sz; y++)
+      for (let x = 0; x < sz; x++)
+        if (((x + y) % sz) < sz / 2) ctx.fillRect(x, y, 1, 1);
+    const tmp = document.createElement('canvas');
+    tmp.width = 1; tmp.height = 1;
+    return tmp.getContext('2d').createPattern(patCanvas, 'repeat');
+  }
+
+  const ytdColorsLight = [
+    cv('--ytd-office'), cv('--ytd-home'), cv('--ytd-vacation'), cv('--ytd-holiday'), cv('--ytd-oncall')
+  ];
+  const ytdColorsDark  = [
+    cv('--ytd-dark-office'),
+    cv('--ytd-dark-home'),
+    makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')),
+    makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')),
+    makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2'))
+  ];
+
+  function makeYtdChart(id) {
+    return new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: {
+        labels: ytdLabels,
+        datasets: [{ data: ytdByPeriod.week, backgroundColor: ytdColorsLight, borderWidth: 0 }]
+      },
+      options: {
+        cutout: '50%',
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                const pct = Math.round(ctx.parsed / total * 100);
+                return ` ${ctx.label}: ${pct}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  ['o','h','w','l'].forEach(v => { if (document.getElementById(`ytd-${v}`)) charts[`ytd-${v}`] = makeYtdChart(`ytd-${v}`); });
+
+  // ---- Weekday Heatmap ----
+  const hmDataYear = {
+    'WW18/25':['home','office','home','office','home'],    'WW19/25':['office','home','home','office','home'],
+    'WW20/25':['home','office','home','home','office'],    'WW21/25':['office','home','office','home','home'],
+    'WW22/25':['home','home','office','home','office'],    'WW23/25':['office','home','home','office','home'],
+    'WW24/25':['home','office','office','home','home'],    'WW25/25':['office','home','home','office','home'],
+    'WW26/25':['home','home','office','home','office'],
+    'WW27/25':['vacation','vacation','vacation','vacation','vacation'],
+    'WW28/25':['vacation','vacation','vacation','vacation','vacation'],
+    'WW29/25':['home','office','home','home','office'],    'WW30/25':['home','home','office','home','home'],
+    'WW31/25':['office','home','home','home','home'],      'WW32/25':['home','office','home','office','home'],
+    'WW33/25':['office','home','office','home','home'],    'WW34/25':['home','home','home','office','office'],
+    'WW35/25':['office','home','home','office','home'],    'WW36/25':['home','office','home','office','home'],
+    'WW37/25':['office','home','home','office','home'],    'WW38/25':['home','office','home','home','office'],
+    'WW39/25':['office','home','office','home','home'],    'WW40/25':['home','home','office','home','office'],
+    'WW41/25':['office','home','home','office','home'],    'WW42/25':['home','office','home','office','home'],
+    'WW43/25':['home','office','home','office','home'],    'WW44/25':['office','home','home','home','office'],
+    'WW45/25':['home','office','home','office','home'],    'WW46/25':['home','home','office','home','office'],
+    'WW47/25':['office','home','home','office','home'],    'WW48/25':['home','office','home','home','office'],
+    'WW49/25':['office','home','office','home','home'],
+    'WW50/25':['home','home','home','home','home'],
+    'WW51/25':['home','home','office','office','home'],
+    'WW52/25':['home','home','home','holiday','holiday'],
+    WW1: ['office','office','office','office','home'],
+    WW2: ['office','office','office','home','home'],
+    WW3: ['home','office','home','office','office'],
+    WW4: ['vacation','vacation','vacation','vacation','vacation'],
+    WW5: ['office','home','office','office','home'],
+    WW6: ['home','office','office','home','office'],
+    WW7: ['office','office','home','home','office'],
+    WW8: ['oncalloff','oncalloff','oncalloff','oncalloff','oncalloff'],
+    WW9: ['home','office','home','office','office'],
+    WW10:['office','office','office','home','office'],
+    WW11:['holiday','holiday','holiday','home','home'],
+    WW12:['office','office','office','home','office'],
+    WW13:['home','home','office','home','home'],
+    WW14:['office','office','home','office','home'],
+    WW15:['office','home','office','office','home'],
+    WW16:['office','home','office','',''],
+  };
+  const hmEntries = Object.entries(hmDataYear);
+  const hmDataMonth = Object.fromEntries(hmEntries.slice(-26)); // last 26 weeks
+  const hmDataWeek  = Object.fromEntries(hmEntries.slice(-4));  // last 4 weeks
+  const hmDataByPeriod = { week: hmDataWeek, month: hmDataMonth, year: hmDataYear };
+  const hmTitles = { week:'4 weeks heatmap', month:'6 months heatmap', year:'12 months heatmap' };
+
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
+
+  function buildHeatmap(id, data) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    const corner = document.createElement('div'); corner.className = 'hm-head'; el.appendChild(corner);
+    dayNames.forEach(d => {
+      const h = document.createElement('div'); h.className = 'hm-head'; h.textContent = d; el.appendChild(h);
+    });
+    Object.entries(data).forEach(([ww, types]) => {
+      const wwEl = document.createElement('div'); wwEl.className = 'hm-ww'; wwEl.textContent = ww; el.appendChild(wwEl);
+      types.forEach((type, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'hm-cell' + (type ? ' ' + type : '');
+        if (type) cell.title = `${ww} ${dayNames[i]}: ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        el.appendChild(cell);
+      });
+    });
+    // Legend (create once per chart-body)
+    const chartBody = el.parentElement.parentElement;
+    if (!chartBody.querySelector('.hm-legend')) {
+      const legend = document.createElement('div');
+      legend.className = 'hm-legend';
+      legend.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;justify-content:center;';
+      [['d-office','Office'],['d-home','Home'],['d-vacation','Vacation'],['d-holiday','Holiday'],['d-oncall','OnCall day off']].forEach(([cls,label]) => {
+        const item = document.createElement('div'); item.className = 'legend-item';
+        const dot = document.createElement('div'); dot.className = 'legend-dot ' + cls;
+        item.appendChild(dot); item.appendChild(document.createTextNode(label));
+        legend.appendChild(item);
+      });
+      chartBody.appendChild(legend);
+    }
+  }
+  ['o','h','w','l'].forEach(v => buildHeatmap(`heatmap-${v}`, hmDataByPeriod.week));
+</script>

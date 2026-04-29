@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Office Day Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <?!= include('Theme' + theme) ?>
+  <?!= include('Styles') ?>
+</head>
+<body class="<?!= isDark ? 'dark' : '' ?>">
+
+<button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode">🌙</button>
+
+<!-- ═══ DEV SANDBOX ONLY — remove tab-bar before clasp push ════════════════ -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showView('office',this)">Office Day</button>
+  <button class="tab-btn"        onclick="showView('home',this)">Home Day</button>
+  <button class="tab-btn"        onclick="showView('weekend',this)">Weekend</button>
+  <button class="tab-btn"        onclick="showView('logged',this)">Already Logged</button>
+  <button class="tab-btn"        onclick="showView('fatal',this)">Fatal Error</button>
+  <button class="tab-btn"        onclick="showView('unauth',this)">Unauthorized</button>
+</div>
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ======== OFFICE ======== -->
+<div id="view-office" class="view active">
+  <div class="container">
+    <?!= include('TitleCard') ?>
+    <?!= include('RingsCard') ?>
+    <?!= include('DaysCard') ?>
+    <?!= include('CalendarCard') ?>
+    <?!= include('StatisticsCard') ?>
+  </div>
+</div>
+
+<!-- ======== HOME ======== -->
+<div id="view-home" class="view">
+  <div class="container">
+    <?!= include('TitleCard') ?>
+    <?!= include('RingsCard') ?>
+    <?!= include('DaysCard') ?>
+    <?!= include('CalendarCard') ?>
+    <?!= include('StatisticsCard') ?>
+  </div>
+</div>
+
+<!-- ======== WEEKEND ======== -->
+<div id="view-weekend" class="view">
+  <div class="container">
+    <?!= include('TitleCard') ?>
+    <?!= include('RingsCard') ?>
+    <?!= include('DaysCard') ?>
+    <?!= include('CalendarCard') ?>
+    <?!= include('StatisticsCard') ?>
+  </div>
+</div>
+
+<!-- ======== ALREADY LOGGED ======== -->
+<div id="view-logged" class="view">
+  <div class="container">
+    <?!= include('TitleCard') ?>
+    <?!= include('RingsCard') ?>
+    <?!= include('DaysCard') ?>
+    <?!= include('CalendarCard') ?>
+    <?!= include('StatisticsCard') ?>
+  </div>
+</div>
+
+<!-- ======== FATAL ERROR ======== -->
+<div id="view-fatal" class="view">
+  <?!= include('FatalErrorCard') ?>
+</div>
+
+<!-- ======== UNAUTHORIZED ======== -->
+<div id="view-unauth" class="view">
+  <?!= include('UnauthorizedCard') ?>
+</div>
+
+<?!= include('JavaScript') ?>
+
+</body>
+</html>
