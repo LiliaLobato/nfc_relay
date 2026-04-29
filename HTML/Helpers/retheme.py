@@ -20,18 +20,19 @@ import re
 from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────────────────
-HERE     = Path(__file__).parent          # nfc_relay/HTML/
-PALETTES = HERE / "HTML_V1"              # read-only palette sources
+HERE     = Path(__file__).parent          # nfc_relay/HTML/Helpers/
+HTML_DIR = HERE.parent                    # nfc_relay/HTML/
+PALETTES = HTML_DIR / "HTML_ColorVariantsIncompleteSkeleton"  # read-only palette sources
 MASTER   = PALETTES / "ui_preview.html"
 
-# Sources are read from PALETTES (never overwritten); outputs go to HERE
+# Sources are read from PALETTES (never overwritten); outputs go to HTML_DIR
 VARIANTS = {
     "default":     (MASTER,                                    "Office Day Tracker — Default"),
     "soft_purple": (PALETTES / "ui_preview_soft_purple.html", "Office Day Tracker — Soft Purple"),
     "matcha":      (PALETTES / "ui_preview_matcha.html",      "Office Day Tracker — Matcha"),
     "gummy":       (PALETTES / "ui_preview_gummy.html",       "Office Day Tracker — Gummy"),
 }
-OUTPUT = {k: HERE / f"ui_preview_{k}.html" for k in VARIANTS}
+OUTPUT = {k: HTML_DIR / "HTML_ColorVariantsFullSkeleton" / f"ui_preview_{k}.html" for k in VARIANTS}
 
 # ── CSS helpers ────────────────────────────────────────────────────────────
 def extract_block_inner(css, selector):
