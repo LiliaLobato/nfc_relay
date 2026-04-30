@@ -1,30 +1,41 @@
 #!/usr/bin/env python3
 """
-stitch.py — assemble Index.html into a single preview file for local testing.
+stitch.py — assemble Index.html into a preview file for local testing.
 
-Resolves Apps Script template tags the same way the server does at serve time:
-  <?!= include('X') ?>              → inlined content of X.html       (recursive)
-  <?!= include('Theme' + theme) ?>  → inlined content of Theme{Name}.html (theme-aware)
-  <?!= JSON.stringify(data) ?>      → inlined content of TestData.html (special rule)
-  <?!= data.X ?>                    → mock value from _MOCK_DATA_FIELDS dict
+Mirrors Apps Script serve-time template evaluation. --theme and --data are
+independent axes: use either, both, or neither.
 
-TestData.html is a local dev-only file and is never pushed to Apps Script.
+TAG RESOLUTION TABLE
+  Tag                              --theme only   --theme --data
+  ─────────────────────────────────────────────────────────────
+  <?!= include('Theme' + theme) ?> resolved       resolved
+  <?!= include('X') ?>             resolved       resolved
+  <?!= JSON.stringify(data) ?>     left as-is     TestData{View}.html inlined
+  <?!= data.X ?>                   _MOCK_DATA_FIELDS  TestData JSON value
+  <?= data.X ?>  (or nested path)  left as-is     TestData JSON value (escaped)
 
-Themes:   Default | SoftPurple | Matcha | Gummy
-Sources:  *.html files in same directory as this script
-Output:   _preview_{theme}.html  (or _preview.html when no --theme given)
+--theme only  -> color/structure check; data tags remain as template placeholders
+--data added  -> fully rendered preview; data values substituted from TestData JSON
+
+Themes:  Default | SoftPurple | Matcha | Gummy
+Views:   Office | Home | Weekend | Logged | Fatal | Unauth
+Output:  HTML_StitchOutput/_preview_{theme}[_{view}].html
 
 Usage:
-  python stitch.py                              write _preview.html (no theme resolved)
-  python stitch.py --theme Matcha               write _preview_matcha.html
-  python stitch.py --theme Matcha --check REF   write + compare against REF; exit 1 if different
-  python stitch.py --theme Matcha --dry-run     resolve and print stats without writing
-  python stitch.py --all                        write all 4 themed previews
-  python stitch.py --all --check-dir DIR        write all 4 + check each against DIR/ui_preview_*.html
+  python stitch.py --help
+  python stitch.py --theme Default                     color variant, no data resolved
+  python stitch.py --theme Default --data Office       fully rendered Office preview
+  python stitch.py --theme Matcha  --data Fatal        fully rendered Fatal preview
+  python stitch.py --all                               all 4 color variants
+  python stitch.py --all --data Office                 all 4 fully rendered with Office data
+  python stitch.py --theme Default --data Office --dry-run
+  python stitch.py --theme Default --check REF         compare output against REF file
+  python stitch.py --all --check-dir DIR               compare all 4 against DIR/ui_preview_*.html
 """
 
 import argparse
 import difflib
+import json
 import re
 import sys
 from pathlib import Path
@@ -32,12 +43,13 @@ from pathlib import Path
 HERE           = Path(__file__).parent                                    # nfc_relay/HTML/Helpers/
 COMPONENTS_DIR = HERE.parent.parent / 'OfficeDayTracker_AppScript'       # nfc_relay/OfficeDayTracker_AppScript/
 OUTPUT_DIR     = HERE.parent / 'HTML_StitchOutput'                       # nfc_relay/HTML/HTML_StitchOutput/
+TEST_DATA_DIR  = HERE.parent / 'TestData'                                 # nfc_relay/HTML/TestData/
 ENTRY          = COMPONENTS_DIR / 'Index.html'
-TEST_DATA      = COMPONENTS_DIR / 'TestData.html'
 
 THEMES = ['Default', 'SoftPurple', 'Matcha', 'Gummy']
+VIEWS  = ['Office', 'Home', 'Weekend', 'Logged', 'Fatal', 'Unauth']
 
-# Maps theme name → output file stem and retheme.py reference file name
+# Maps theme name -> output file stem and retheme.py reference file name
 _THEME_META = {
     'Default':     ('_preview_default',      'ui_preview_default.html'),
     'SoftPurple':  ('_preview_soft_purple',  'ui_preview_soft_purple.html'),
@@ -45,25 +57,56 @@ _THEME_META = {
     'Gummy':       ('_preview_gummy',        'ui_preview_gummy.html'),
 }
 
-_DATA_TAG       = re.compile(r'<\?!=\s*JSON\.stringify\(data\)\s*\?>')
-_DATA_FIELD_TAG = re.compile(r'<\?!=\s*data\.(\w+)\s*\?>')
-_INCLUDE_TAG    = re.compile(r"<\?!=\s*include\(['\"](\w+)['\"]\)\s*\?>")
-_THEME_TAG      = re.compile(r"<\?!=\s*include\(['\"]Theme['\"]\s*\+\s*theme\)\s*\?>")
+_DATA_TAG         = re.compile(r'<\?!=\s*JSON\.stringify\(data\)\s*\?>')
+_DATA_FIELD_TAG   = re.compile(r'<\?!=\s*data\.(\w+)\s*\?>')                   # unescaped  <?!= data.X ?>
+_DATA_ESCAPED_TAG = re.compile(r'<\?=\s*data\.([\w]+(?:\.[\w]+)*)\s*\?>')      # escaped    <?=  data.X.Y.Z ?>
+_INCLUDE_TAG      = re.compile(r"<\?!=\s*include\(['\"](\w+)['\"]\)\s*\?>")
+_THEME_TAG        = re.compile(r"<\?!=\s*include\(['\"]Theme['\"]\s*\+\s*theme\)\s*\?>")
 
-# Mock values for data.X field tags (used by FatalErrorCard and similar templates)
+# Fallback mock values for <?!= data.X ?> when no --data flag is given
 _MOCK_DATA_FIELDS = {
     'errorMessage': 'Could not load spreadsheet data. Check that the sheet is accessible and try again.',
     'isDark':       'false',
 }
 
 
-def resolve(content, theme=None, depth=0):
+def _get_nested(obj, path):
+    """Return value at dot-separated path in a nested dict, or None if missing."""
+    for part in path.split('.'):
+        if not isinstance(obj, dict):
+            return None
+        obj = obj.get(part)
+    return obj
+
+
+def _load_test_data(view):
+    """Parse TestData{View}.html (or TestData.html) as JSON. Returns dict or None."""
+    candidates = []
+    if view:
+        candidates.append(TEST_DATA_DIR / f'TestData{view}.html')
+    candidates.append(TEST_DATA_DIR / 'TestData.html')
+    for path in candidates:
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding='utf-8'))
+            except json.JSONDecodeError as e:
+                print(f'  WARN  {path.name}: invalid JSON — {e}', file=sys.stderr)
+                return None
+    return None
+
+
+def resolve(content, theme=None, view=None, data_obj=None, depth=0):
     """Recursively resolve all template tags in content.
 
-    theme:  concrete theme name (e.g. 'Matcha') used to resolve the dynamic
-            include('Theme' + theme) tag. If None, the tag is left as a comment.
-    Raises RecursionError if include depth exceeds 20 (cycle guard).
-    Prints a warning and injects an HTML comment for any missing file.
+    theme:    Theme name (e.g. 'Matcha') — resolves include('Theme' + theme).
+              If None, the tag becomes an HTML comment.
+    view:     View name (e.g. 'Office') — selects TestData{View}.html for the
+              JSON.stringify(data) tag. Falls back to TestData.html if absent.
+    data_obj: Parsed TestData JSON dict. When provided:
+                <?= data.X.Y ?>   resolved via _get_nested (escaped output)
+                <?!= data.X ?>    resolved from dict, falls back to _MOCK_DATA_FIELDS
+              When None, <?= data.X ?> tags are left as-is.
+    Raises RecursionError at depth > 20 (cycle guard).
     """
     if depth > 20:
         raise RecursionError('include depth > 20 — possible cycle')
@@ -76,17 +119,37 @@ def resolve(content, theme=None, depth=0):
         if not path.exists():
             print(f'  WARN  Theme{theme}.html not found', file=sys.stderr)
             return f'<!-- stitch: missing Theme{theme}.html -->'
-        return resolve(path.read_text(encoding='utf-8'), theme, depth + 1)
+        return resolve(path.read_text(encoding='utf-8'), theme, view, data_obj, depth + 1)
 
     def _sub_data(_m):
-        if not TEST_DATA.exists():
-            print('  WARN  TestData.html not found — data tag left unresolved', file=sys.stderr)
-            return _m.group(0)
-        return TEST_DATA.read_text(encoding='utf-8')
+        candidates = []
+        if view:
+            candidates.append(TEST_DATA_DIR / f'TestData{view}.html')
+        candidates.append(TEST_DATA_DIR / 'TestData.html')
+        for path in candidates:
+            if path.exists():
+                return path.read_text(encoding='utf-8')
+        names = ' / '.join(p.name for p in candidates)
+        print(f'  WARN  {names} not found — data tag left unresolved', file=sys.stderr)
+        return _m.group(0)
 
     def _sub_data_field(m):
         key = m.group(1)
+        if data_obj is not None:
+            val = data_obj.get(key)
+            if val is not None:
+                return str(val)
         return _MOCK_DATA_FIELDS.get(key, f'[mock: data.{key}]')
+
+    def _sub_data_escaped(m):
+        path = m.group(1)
+        if data_obj is None:
+            return m.group(0)  # no --data: leave tag as-is
+        val = _get_nested(data_obj, path)
+        if val is None:
+            print(f'  WARN  data.{path} not found in TestData', file=sys.stderr)
+            return f'[missing: data.{path}]'
+        return str(val)
 
     def _sub_include(m):
         name = m.group(1)
@@ -94,12 +157,14 @@ def resolve(content, theme=None, depth=0):
         if not path.exists():
             print(f'  WARN  {name}.html not found', file=sys.stderr)
             return f'<!-- stitch: missing {name}.html -->'
-        return resolve(path.read_text(encoding='utf-8'), theme, depth + 1)
+        return resolve(path.read_text(encoding='utf-8'), theme, view, data_obj, depth + 1)
 
-    # Order matters: resolve theme tag before general include (avoids regex collision)
+    # Order matters: theme before include (avoids regex collision);
+    # data tags before include (so inlined JS/HTML is not re-scanned for tags)
     content = _THEME_TAG.sub(_sub_theme, content)
     content = _DATA_TAG.sub(_sub_data, content)
     content = _DATA_FIELD_TAG.sub(_sub_data_field, content)
+    content = _DATA_ESCAPED_TAG.sub(_sub_data_escaped, content)
     content = _INCLUDE_TAG.sub(_sub_include, content)
     return content
 
@@ -139,16 +204,18 @@ def check_against(output_text, output_name, ref_path):
     return False
 
 
-def run_theme(theme, check_ref=None, dry_run=False):
+def run_theme(theme, view=None, check_ref=None, dry_run=False):
     """Assemble and optionally check one theme variant. Returns True on success."""
     if not ENTRY.exists():
         print(f'  ERROR  {ENTRY} not found', file=sys.stderr)
         return False
 
     stem, _ = _THEME_META[theme]
-    output  = OUTPUT_DIR / f'{stem}.html'
-    result  = resolve(ENTRY.read_text(encoding='utf-8'), theme)
-    lines   = len(result.splitlines())
+    suffix   = f'_{view.lower()}' if view else ''
+    output   = OUTPUT_DIR / f'{stem}{suffix}.html'
+    data_obj = _load_test_data(view) if view else None
+    result   = resolve(ENTRY.read_text(encoding='utf-8'), theme, view, data_obj)
+    lines    = len(result.splitlines())
 
     if dry_run:
         print(f'  --  {output.name}  ({lines} lines)  (not written)')
@@ -166,28 +233,47 @@ def main():
     parser = argparse.ArgumentParser(
         prog='stitch.py',
         description=(
-            'Assemble Index.html into themed preview files for local testing.\n'
+            'Assemble Index.html into a preview file for local testing.\n'
             'Mirrors Apps Script serve-time template evaluation.\n\n'
-            'Single theme:\n'
-            '  python stitch.py --theme Matcha\n'
-            '  python stitch.py --theme Matcha --check path/to/ui_preview_matcha.html\n\n'
-            'All themes at once:\n'
-            '  python stitch.py --all\n'
-            '  python stitch.py --all --check-dir path/to/nfc_relay/HTML/'
+            '--theme and --data are independent: use either, both, or neither.\n\n'
+            '  --theme only   : color/structure check; <?= data.X ?> tags left as-is\n'
+            '  --data only    : data resolved; theme CSS left as HTML comment\n'
+            '  both           : fully rendered preview (recommended for feature work)\n\n'
+            'Examples:\n'
+            '  python stitch.py --theme Default                    color variant\n'
+            '  python stitch.py --theme Default --data Office      full Office preview\n'
+            '  python stitch.py --theme Matcha  --data Fatal       full Fatal preview\n'
+            '  python stitch.py --all                              all 4 color variants\n'
+            '  python stitch.py --all --data Office                all 4 + Office data\n'
+            '  python stitch.py --theme Default --data Office --dry-run\n'
+            '  python stitch.py --theme Default --check REF        diff against REF\n'
+            '  python stitch.py --all --check-dir DIR              diff all 4 variants\n'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         '--theme', choices=THEMES, metavar='NAME',
-        help=f'Theme to resolve. Choices: {", ".join(THEMES)}.',
+        help=(
+            f'Theme to resolve. Inlines Theme{{NAME}}.html CSS into the output. '
+            f'Choices: {", ".join(THEMES)}.'
+        ),
+    )
+    parser.add_argument(
+        '--data', choices=VIEWS, metavar='VIEW',
+        help=(
+            f'View data to inject. Loads TestData{{VIEW}}.html from HTML/TestData/, '
+            f'inlines it at the JSON.stringify tag, and resolves all <?= data.X ?> '
+            f'template tags from the same JSON. '
+            f'Choices: {", ".join(VIEWS)}.'
+        ),
     )
     parser.add_argument(
         '--all', action='store_true',
-        help='Generate all 4 themed previews.',
+        help='Generate all 4 themed previews in one pass. Combine with --data to also resolve data tags.',
     )
     parser.add_argument(
         '--check', metavar='REF',
-        help='(Single theme) Compare output against REF. Exit 1 if different.',
+        help='(Single --theme) Compare output against REF file. Exit 1 if different.',
     )
     parser.add_argument(
         '--check-dir', metavar='DIR',
@@ -195,7 +281,7 @@ def main():
     )
     parser.add_argument(
         '--dry-run', action='store_true',
-        help='Resolve and print stats without writing any files.',
+        help='Resolve and print line counts without writing any files.',
     )
     args = parser.parse_args()
 
@@ -204,7 +290,8 @@ def main():
         if not ENTRY.exists():
             print(f'  ERROR  {ENTRY} not found', file=sys.stderr)
             sys.exit(1)
-        result = resolve(ENTRY.read_text(encoding='utf-8'))
+        data_obj = _load_test_data(args.data) if args.data else None
+        result   = resolve(ENTRY.read_text(encoding='utf-8'), view=args.data, data_obj=data_obj)
         lines  = len(result.splitlines())
         if args.dry_run:
             print(f'Dry run - {lines} lines resolved, no file written.')
@@ -225,7 +312,7 @@ def main():
         for t in targets:
             _, ref_name = _THEME_META[t]
             ref = str(check_dir / ref_name) if check_dir else None
-            ok  = run_theme(t, check_ref=ref, dry_run=args.dry_run)
+            ok  = run_theme(t, view=args.data, check_ref=ref, dry_run=args.dry_run)
             all_ok = all_ok and ok
         print('Done.')
         if not all_ok:
@@ -234,7 +321,7 @@ def main():
 
     # Single theme
     _, ref_name = _THEME_META[args.theme]
-    ok = run_theme(args.theme, check_ref=args.check, dry_run=args.dry_run)
+    ok = run_theme(args.theme, view=args.data, check_ref=args.check, dry_run=args.dry_run)
     print('Done.')
     if not ok:
         sys.exit(1)
