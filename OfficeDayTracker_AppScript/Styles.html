@@ -81,14 +81,20 @@
     }
     .status-badge.office   { background: var(--office-bg);  color: var(--office-text); }
     .status-badge.home     { background: var(--home-bg);    color: var(--home-text); }
-    .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); font-size:16px; line-height:1.6; padding:18px 28px; }
+    .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); }
     .status-badge.holiday  { background: var(--holiday-bg); color: var(--holiday-text); }
     .status-badge.vacation { background: var(--vacation-bg);color: var(--vacation-text); }
     .status-badge.oncall   { background: var(--oncall-bg);  color: var(--oncall-text); }
-    .recommendation {
-      margin-bottom: 12px; padding: 10px 16px;
-      border-radius: 10px; font-size: 13px; font-weight: 600;
+    /* ---- Already-logged banner (shown above the status badge when alreadyLogged=true) ---- */
+    .already-logged-banner { display: none; }
+    .already-logged-banner.true {
+      display: block; width: 100%; text-align: center;
+      padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; margin-bottom: 12px;
     }
+    .already-logged-banner.true.office   { background: var(--office-bg);   color: var(--office-text); }
+    .already-logged-banner.true.home     { background: var(--home-bg);     color: var(--home-text); }
+    .already-logged-banner.true.weekend  { background: var(--weekend-bg);  color: var(--weekend-text); }
     /* ---- Error cards ---- */
     .error-page {
       min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -151,6 +157,7 @@
     .legend-dot.d-vacation { background: var(--vacation-bg); }
     .legend-dot.d-holiday  { background: var(--holiday-bg); }
     .legend-dot.d-oncall   { background: var(--oncall-bg); }
+    .cal-day.today { box-shadow: 0 0 0 2px var(--accent); font-weight: 700; }
     .cal-day.other-month { opacity: 0.25; }
     .cal-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; justify-content: center; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }

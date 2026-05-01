@@ -3,15 +3,15 @@
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Best day of week</span></div>
             <div class="chart-body">
-              <div class="month-stat">Wednesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">31</strong>× last 12 months</div>
+              <div class="month-stat"><?= data.charts.week.bestWorst.best.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.week.bestWorst.best.value ?></strong>× last 12 months</div>
             </div>
           </div>
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Worst day of week</span></div>
             <div class="chart-body">
-              <div class="month-stat">Tuesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">14</strong>× last 12 months</div>
+              <div class="month-stat"><?= data.charts.week.bestWorst.worst.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.week.bestWorst.worst.value ?></strong>× last 12 months</div>
             </div>
           </div>
         </div>
@@ -19,15 +19,15 @@
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Best week</span></div>
             <div class="chart-body">
-              <div class="month-stat">WW5 (2/Feb)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
+              <div class="month-stat"><?= data.charts.month.bestWorst.best.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.month.bestWorst.best.value ?></strong> days</div>
             </div>
           </div>
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Worst week</span></div>
             <div class="chart-body">
-              <div class="month-stat">WW51 (15/Dec/25)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">0</strong> days</div>
+              <div class="month-stat"><?= data.charts.month.bestWorst.worst.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.month.bestWorst.worst.value ?></strong> days</div>
             </div>
           </div>
         </div>
@@ -35,15 +35,15 @@
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Best month</span></div>
             <div class="chart-body">
-              <div class="month-stat">Mar</div>
-              <div class="month-avg"><strong style="color:var(--accent)">11</strong> days</div>
+              <div class="month-stat"><?= data.charts.year.bestWorst.best.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.year.bestWorst.best.value ?></strong> days</div>
             </div>
           </div>
           <div class="chart-item">
             <div class="chart-item-header"><span class="chart-item-title">Worst month</span></div>
             <div class="chart-body">
-              <div class="month-stat">Dec/25</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
+              <div class="month-stat"><?= data.charts.year.bestWorst.worst.label ?></div>
+              <div class="month-avg"><strong style="color:var(--accent)"><?= data.charts.year.bestWorst.worst.value ?></strong> days</div>
             </div>
           </div>
         </div>

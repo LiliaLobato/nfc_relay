@@ -189,14 +189,20 @@
     }
     .status-badge.office   { background: var(--office-bg);  color: var(--office-text); }
     .status-badge.home     { background: var(--home-bg);    color: var(--home-text); }
-    .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); font-size:16px; line-height:1.6; padding:18px 28px; }
+    .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); }
     .status-badge.holiday  { background: var(--holiday-bg); color: var(--holiday-text); }
     .status-badge.vacation { background: var(--vacation-bg);color: var(--vacation-text); }
     .status-badge.oncall   { background: var(--oncall-bg);  color: var(--oncall-text); }
-    .recommendation {
-      margin-bottom: 12px; padding: 10px 16px;
-      border-radius: 10px; font-size: 13px; font-weight: 600;
+    /* ---- Already-logged banner (shown above the status badge when alreadyLogged=true) ---- */
+    .already-logged-banner { display: none; }
+    .already-logged-banner.true {
+      display: block; width: 100%; text-align: center;
+      padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; margin-bottom: 12px;
     }
+    .already-logged-banner.true.office   { background: var(--office-bg);   color: var(--office-text); }
+    .already-logged-banner.true.home     { background: var(--home-bg);     color: var(--home-text); }
+    .already-logged-banner.true.weekend  { background: var(--weekend-bg);  color: var(--weekend-text); }
     /* ---- Error cards ---- */
     .error-page {
       min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -259,6 +265,7 @@
     .legend-dot.d-vacation { background: var(--vacation-bg); }
     .legend-dot.d-holiday  { background: var(--holiday-bg); }
     .legend-dot.d-oncall   { background: var(--oncall-bg); }
+    .cal-day.today { box-shadow: 0 0 0 2px var(--accent); font-weight: 700; }
     .cal-day.other-month { opacity: 0.25; }
     .cal-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; justify-content: center; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -334,29 +341,19 @@
   </style>
 
 </head>
-<body class="<?!= isDark ? 'dark' : '' ?>">
+<body class="">
 
 <button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode">🌙</button>
 
-<!-- ═══ DEV SANDBOX ONLY — remove tab-bar before clasp push ════════════════ -->
-<div class="tab-bar">
-  <button class="tab-btn active" onclick="showView('office',this)">Office Day</button>
-  <button class="tab-btn"        onclick="showView('home',this)">Home Day</button>
-  <button class="tab-btn"        onclick="showView('weekend',this)">Weekend</button>
-  <button class="tab-btn"        onclick="showView('logged',this)">Already Logged</button>
-  <button class="tab-btn"        onclick="showView('fatal',this)">Fatal Error</button>
-  <button class="tab-btn"        onclick="showView('unauth',this)">Unauthorized</button>
-</div>
-<!-- ══════════════════════════════════════════════════════════════════════════ -->
-
-<!-- ======== OFFICE ======== -->
-<div id="view-office" class="view active">
+<!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
+<div id="view-main" class="view active">
   <div class="container">
         <div class="card header-card">
+      <div class="already-logged-banner true office">Already logged</div>
       <div class="status-badge office">Office Day</div>
       <div class="header-ww">WW16</div>
-      <div class="header-date">Thursday, 16/Apr/2026 — 9:05 AM</div>
-      <div class="header-combined">WW16 · Thursday, 16/Apr/2026 — 9:05 AM</div>
+      <div class="header-date">Thursday, 16/Apr/2026 — 6:45 PM</div>
+      <div class="header-combined">WW16 · Thursday, 16/Apr/2026 — 6:45 PM</div>
     </div>
 
         <div class="card rings-card">
@@ -375,7 +372,7 @@
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
+          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">–</div></div>
           <div class="ring-label">Goal Hit Rate</div>
         </div>
       </div>
@@ -387,7 +384,7 @@
       <div class="card-label">Days still needed</div>
       <div class="days-pills">
         <div class="day-pill">
-          <div class="day-pill-count">1</div>
+          <div class="day-pill-count">0</div>
           <div class="day-pill-label">This week</div>
           <div class="day-pill-ww">WW 16</div>
         </div>
@@ -427,541 +424,7 @@
           </div>
           <div class="chart-body" id="cy-o">
             <canvas id="ytd-o" height="160"></canvas>
-            <div class="ytd-row">
-              <span class="ytd-item office-ytd">Office <strong>11</strong></span>
-              <span class="ytd-item home-ytd">Home <strong>7</strong></span>
-              <span class="ytd-item vacation-ytd">Vacation <strong>0</strong></span>
-              <span class="ytd-item holiday-ytd">Holiday <strong>2</strong></span>
-              <span class="ytd-item oncall-ytd">OnCall day off <strong>0</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="charts-col">
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="bar-title-o">Office days by weekday</span>
-            </div>
-            <div class="chart-body" id="cb-o"><canvas id="bar-o" height="150"></canvas></div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-o">Last 4 weeks</span>
-            </div>
-            <div class="chart-body" id="cl-o"><canvas id="line-o" height="150"></canvas></div>
-          </div>
-        </div>
-
-                <!-- Row 2: Pace Tracker -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Pace tracker</span>
-          </div>
-          <div class="chart-body" id="cp-o"><canvas id="pace-o" height="120"></canvas></div>
-        </div>
-
-                <!-- Row 3: Best / Worst -->
-        <div class="bw-pair bw-weekday">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Wednesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">31</strong>× last 12 months</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Tuesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">14</strong>× last 12 months</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-weekly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW5 (2/Feb)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW51 (15/Dec/25)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">0</strong> days</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-monthly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Mar</div>
-              <div class="month-avg"><strong style="color:var(--accent)">11</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Dec/25</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-        </div>
-
-                <!-- Row 4: Heatmap -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">4 weeks heatmap</span>
-          </div>
-          <div class="chart-body" id="chm-o">
-            <div class="heatmap-wrap"><div id="heatmap-o" class="heatmap"></div></div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ======== HOME ======== -->
-<div id="view-home" class="view">
-  <div class="container">
-        <div class="card header-card">
-      <div class="status-badge office">Office Day</div>
-      <div class="header-ww">WW16</div>
-      <div class="header-date">Thursday, 16/Apr/2026 — 9:05 AM</div>
-      <div class="header-combined">WW16 · Thursday, 16/Apr/2026 — 9:05 AM</div>
-    </div>
-
-        <div class="card rings-card">
-      <div class="card-label">Best of averages — WW 16</div>
-      <div class="rings-row rings-row--four">
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
-          <div class="ring-label">Best 10/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
-          <div class="ring-label">Best 8/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
-          <div class="ring-label">Best 8/10</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
-          <div class="ring-label">Goal Hit Rate</div>
-        </div>
-      </div>
-      <div class="absence-stat">Raw yearly average: <strong>2.1</strong></div>
-      <div class="projection-text" style="margin-top:8px;">At your current best 10/12 average of <strong>2.4 days/week</strong>, you'll finish April with <strong>15/22</strong> office days.</div>
-    </div>
-
-        <div class="card days-card">
-      <div class="card-label">Days still needed</div>
-      <div class="days-pills">
-        <div class="day-pill">
-          <div class="day-pill-count">1</div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
-        </div>
-        <div class="day-pill">
-          <div class="day-pill-count">2</div>
-          <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
-        </div>
-      </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
-    </div>
-
-        <div class="card calendar-card">
-      <div class="cal-header"><div class="cal-title">April 2026</div></div>
-      <div class="cal-grid" id="cal-o"></div>
-      <div class="cal-legend">
-        <div class="legend-item"><div class="legend-dot d-office"></div>Office</div>
-        <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
-        <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
-        <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
-        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
-      </div>
-    </div>
-
-        <div class="card charts-card">
-      <div class="card-label">Statistics</div>
-      <div class="period-tabs">
-        <button class="period-btn active" onclick="setPeriod('o','week',this)">Daily</button>
-        <button class="period-btn" onclick="setPeriod('o','month',this)">Weekly</button>
-        <button class="period-btn" onclick="setPeriod('o','year',this)">Monthly</button>
-      </div>
-      <div class="charts-grid">
-                <!-- Row 1: YTD Split | Bar + Line stacked -->
-        <div class="chart-item" style="height:100%">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Last 4 weeks split</span>
-          </div>
-          <div class="chart-body" id="cy-o">
-            <canvas id="ytd-o" height="160"></canvas>
-            <div class="ytd-row">
-              <span class="ytd-item office-ytd">Office <strong>11</strong></span>
-              <span class="ytd-item home-ytd">Home <strong>7</strong></span>
-              <span class="ytd-item vacation-ytd">Vacation <strong>0</strong></span>
-              <span class="ytd-item holiday-ytd">Holiday <strong>2</strong></span>
-              <span class="ytd-item oncall-ytd">OnCall day off <strong>0</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="charts-col">
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="bar-title-o">Office days by weekday</span>
-            </div>
-            <div class="chart-body" id="cb-o"><canvas id="bar-o" height="150"></canvas></div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-o">Last 4 weeks</span>
-            </div>
-            <div class="chart-body" id="cl-o"><canvas id="line-o" height="150"></canvas></div>
-          </div>
-        </div>
-
-                <!-- Row 2: Pace Tracker -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Pace tracker</span>
-          </div>
-          <div class="chart-body" id="cp-o"><canvas id="pace-o" height="120"></canvas></div>
-        </div>
-
-                <!-- Row 3: Best / Worst -->
-        <div class="bw-pair bw-weekday">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Wednesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">31</strong>× last 12 months</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Tuesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">14</strong>× last 12 months</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-weekly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW5 (2/Feb)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW51 (15/Dec/25)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">0</strong> days</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-monthly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Mar</div>
-              <div class="month-avg"><strong style="color:var(--accent)">11</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Dec/25</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-        </div>
-
-                <!-- Row 4: Heatmap -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">4 weeks heatmap</span>
-          </div>
-          <div class="chart-body" id="chm-o">
-            <div class="heatmap-wrap"><div id="heatmap-o" class="heatmap"></div></div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ======== WEEKEND ======== -->
-<div id="view-weekend" class="view">
-  <div class="container">
-        <div class="card header-card">
-      <div class="status-badge office">Office Day</div>
-      <div class="header-ww">WW16</div>
-      <div class="header-date">Thursday, 16/Apr/2026 — 9:05 AM</div>
-      <div class="header-combined">WW16 · Thursday, 16/Apr/2026 — 9:05 AM</div>
-    </div>
-
-        <div class="card rings-card">
-      <div class="card-label">Best of averages — WW 16</div>
-      <div class="rings-row rings-row--four">
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
-          <div class="ring-label">Best 10/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
-          <div class="ring-label">Best 8/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
-          <div class="ring-label">Best 8/10</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
-          <div class="ring-label">Goal Hit Rate</div>
-        </div>
-      </div>
-      <div class="absence-stat">Raw yearly average: <strong>2.1</strong></div>
-      <div class="projection-text" style="margin-top:8px;">At your current best 10/12 average of <strong>2.4 days/week</strong>, you'll finish April with <strong>15/22</strong> office days.</div>
-    </div>
-
-        <div class="card days-card">
-      <div class="card-label">Days still needed</div>
-      <div class="days-pills">
-        <div class="day-pill">
-          <div class="day-pill-count">1</div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
-        </div>
-        <div class="day-pill">
-          <div class="day-pill-count">2</div>
-          <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
-        </div>
-      </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
-    </div>
-
-        <div class="card calendar-card">
-      <div class="cal-header"><div class="cal-title">April 2026</div></div>
-      <div class="cal-grid" id="cal-o"></div>
-      <div class="cal-legend">
-        <div class="legend-item"><div class="legend-dot d-office"></div>Office</div>
-        <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
-        <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
-        <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
-        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
-      </div>
-    </div>
-
-        <div class="card charts-card">
-      <div class="card-label">Statistics</div>
-      <div class="period-tabs">
-        <button class="period-btn active" onclick="setPeriod('o','week',this)">Daily</button>
-        <button class="period-btn" onclick="setPeriod('o','month',this)">Weekly</button>
-        <button class="period-btn" onclick="setPeriod('o','year',this)">Monthly</button>
-      </div>
-      <div class="charts-grid">
-                <!-- Row 1: YTD Split | Bar + Line stacked -->
-        <div class="chart-item" style="height:100%">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Last 4 weeks split</span>
-          </div>
-          <div class="chart-body" id="cy-o">
-            <canvas id="ytd-o" height="160"></canvas>
-            <div class="ytd-row">
-              <span class="ytd-item office-ytd">Office <strong>11</strong></span>
-              <span class="ytd-item home-ytd">Home <strong>7</strong></span>
-              <span class="ytd-item vacation-ytd">Vacation <strong>0</strong></span>
-              <span class="ytd-item holiday-ytd">Holiday <strong>2</strong></span>
-              <span class="ytd-item oncall-ytd">OnCall day off <strong>0</strong></span>
-            </div>
-          </div>
-        </div>
-        <div class="charts-col">
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="bar-title-o">Office days by weekday</span>
-            </div>
-            <div class="chart-body" id="cb-o"><canvas id="bar-o" height="150"></canvas></div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-o">Last 4 weeks</span>
-            </div>
-            <div class="chart-body" id="cl-o"><canvas id="line-o" height="150"></canvas></div>
-          </div>
-        </div>
-
-                <!-- Row 2: Pace Tracker -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Pace tracker</span>
-          </div>
-          <div class="chart-body" id="cp-o"><canvas id="pace-o" height="120"></canvas></div>
-        </div>
-
-                <!-- Row 3: Best / Worst -->
-        <div class="bw-pair bw-weekday">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Wednesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">31</strong>× last 12 months</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst day of week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Tuesday</div>
-              <div class="month-avg"><strong style="color:var(--accent)">14</strong>× last 12 months</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-weekly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW5 (2/Feb)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst week</span></div>
-            <div class="chart-body">
-              <div class="month-stat">WW51 (15/Dec/25)</div>
-              <div class="month-avg"><strong style="color:var(--accent)">0</strong> days</div>
-            </div>
-          </div>
-        </div>
-        <div class="bw-pair bw-monthly" style="display:none">
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Best month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Mar</div>
-              <div class="month-avg"><strong style="color:var(--accent)">11</strong> days</div>
-            </div>
-          </div>
-          <div class="chart-item">
-            <div class="chart-item-header"><span class="chart-item-title">Worst month</span></div>
-            <div class="chart-body">
-              <div class="month-stat">Dec/25</div>
-              <div class="month-avg"><strong style="color:var(--accent)">5</strong> days</div>
-            </div>
-          </div>
-        </div>
-
-                <!-- Row 4: Heatmap -->
-        <div class="chart-item" style="grid-column:1/-1">
-          <div class="chart-item-header">
-            <span class="chart-item-title">4 weeks heatmap</span>
-          </div>
-          <div class="chart-body" id="chm-o">
-            <div class="heatmap-wrap"><div id="heatmap-o" class="heatmap"></div></div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ======== ALREADY LOGGED ======== -->
-<div id="view-logged" class="view">
-  <div class="container">
-        <div class="card header-card">
-      <div class="status-badge office">Office Day</div>
-      <div class="header-ww">WW16</div>
-      <div class="header-date">Thursday, 16/Apr/2026 — 9:05 AM</div>
-      <div class="header-combined">WW16 · Thursday, 16/Apr/2026 — 9:05 AM</div>
-    </div>
-
-        <div class="card rings-card">
-      <div class="card-label">Best of averages — WW 16</div>
-      <div class="rings-row rings-row--four">
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
-          <div class="ring-label">Best 10/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
-          <div class="ring-label">Best 8/12</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
-          <div class="ring-label">Best 8/10</div>
-        </div>
-        <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">64%</div></div>
-          <div class="ring-label">Goal Hit Rate</div>
-        </div>
-      </div>
-      <div class="absence-stat">Raw yearly average: <strong>2.1</strong></div>
-      <div class="projection-text" style="margin-top:8px;">At your current best 10/12 average of <strong>2.4 days/week</strong>, you'll finish April with <strong>15/22</strong> office days.</div>
-    </div>
-
-        <div class="card days-card">
-      <div class="card-label">Days still needed</div>
-      <div class="days-pills">
-        <div class="day-pill">
-          <div class="day-pill-count">1</div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
-        </div>
-        <div class="day-pill">
-          <div class="day-pill-count">2</div>
-          <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
-        </div>
-      </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
-    </div>
-
-        <div class="card calendar-card">
-      <div class="cal-header"><div class="cal-title">April 2026</div></div>
-      <div class="cal-grid" id="cal-o"></div>
-      <div class="cal-legend">
-        <div class="legend-item"><div class="legend-dot d-office"></div>Office</div>
-        <div class="legend-item"><div class="legend-dot d-home"></div>Home</div>
-        <div class="legend-item"><div class="legend-dot d-vacation"></div>Vacation</div>
-        <div class="legend-item"><div class="legend-dot d-holiday"></div>Holiday</div>
-        <div class="legend-item"><div class="legend-dot d-oncall"></div>OnCall day off</div>
-      </div>
-    </div>
-
-        <div class="card charts-card">
-      <div class="card-label">Statistics</div>
-      <div class="period-tabs">
-        <button class="period-btn active" onclick="setPeriod('o','week',this)">Daily</button>
-        <button class="period-btn" onclick="setPeriod('o','month',this)">Weekly</button>
-        <button class="period-btn" onclick="setPeriod('o','year',this)">Monthly</button>
-      </div>
-      <div class="charts-grid">
-                <!-- Row 1: YTD Split | Bar + Line stacked -->
-        <div class="chart-item" style="height:100%">
-          <div class="chart-item-header">
-            <span class="chart-item-title">Last 4 weeks split</span>
-          </div>
-          <div class="chart-body" id="cy-o">
-            <canvas id="ytd-o" height="160"></canvas>
-            <div class="ytd-row">
-              <span class="ytd-item office-ytd">Office <strong>11</strong></span>
-              <span class="ytd-item home-ytd">Home <strong>7</strong></span>
-              <span class="ytd-item vacation-ytd">Vacation <strong>0</strong></span>
-              <span class="ytd-item holiday-ytd">Holiday <strong>2</strong></span>
-              <span class="ytd-item oncall-ytd">OnCall day off <strong>0</strong></span>
-            </div>
+            <div class="ytd-row"></div>
           </div>
         </div>
         <div class="charts-col">
@@ -1059,7 +522,7 @@
     <div class="error-card">
       <div class="error-icon">⚠️</div>
       <div class="error-title danger">Something went wrong</div>
-      <div class="error-msg" style="margin-top:12px;"><?!= data.errorMessage ?></div>
+      <div class="error-msg" style="margin-top:12px;">Could not load spreadsheet data. Check that the sheet is accessible and try again.</div>
     </div>
   </div>
 
@@ -1078,76 +541,201 @@
 </div>
 
 <script>
+  const DATA = {
+  "status": "office",
+  "statusLabel": "Office Day",
+  "alreadyLogged": true,
+  "weekNumber": 16,
+  "date": "Thursday, 16/Apr/2026",
+  "time": "6:45 PM",
+  "rings": {
+    "weekAvg": 2.4,
+    "monthAvg": 2.8,
+    "yearAvg": 2.1,
+    "rawAverage": 2.1,
+    "goalActual": 32,
+    "goalTarget": 50,
+    "projectedDays": 15,
+    "totalDays": 22
+  },
+  "days": {
+    "thisWeek": 0,
+    "nextWeek": 2,
+    "nextWeekNumber": 17,
+    "daysPerWeekNeeded": 3.3,
+    "monthsRemaining": 2,
+    "vacationPlanned": 3,
+    "oncallPlanned": 2,
+    "holidayPlanned": 1
+  },
+  "calendar": {
+    "month": "April",
+    "monthLabel": "April 2026",
+    "daysInMonth": 30,
+    "today": 16,
+    "types": {
+      "1": "home",  "2": "office", "3": "office",
+      "4": "weekend-day", "5": "weekend-day",
+      "6": "home",  "7": "office", "8": "home", "9": "office", "10": "office",
+      "11": "weekend-day", "12": "weekend-day",
+      "13": "home", "14": "office", "15": "home", "16": "office", "17": "future",
+      "18": "weekend-day", "19": "weekend-day",
+      "20": "office", "21": "home", "22": "vacation", "23": "holiday", "24": "oncalloff",
+      "25": "weekend-day", "26": "weekend-day",
+      "27": "future", "28": "future", "29": "future", "30": "future"
+    },
+    "prevDays": [
+      { "day": 30, "type": "office" },
+      { "day": 31, "type": "home"   }
+    ],
+    "nextDays": [
+      { "day": 1, "type": "future"      },
+      { "day": 2, "type": "weekend-day" },
+      { "day": 3, "type": "weekend-day" }
+    ]
+  },
+  "charts": {
+    "goal": 3,
+    "week": {
+      "labels":    ["15/Dec/25","16/Dec/25","17/Dec/25","18/Dec/25","19/Dec/25","22/Dec/25","23/Dec/25","24/Dec/25","25/Dec/25","26/Dec/25","5/Jan","6/Jan","7/Jan","8/Jan","9/Jan","12/Jan","13/Jan","14/Jan","15/Jan","16/Jan"],
+      "barLabels": ["Mon","Tue","Wed","Thu","Fri"],
+      "barData":   [0, 1, 1, 1, 0],
+      "line1":     [2.4,2.4,2.3,2.3,2.3, 2.3,2.2,2.2,2.2,2.2, 2.1,2.1,2.0,2.0,2.1, 2.1,2.1,2.0,2.0,2.1],
+      "line2":     [3.0,3.0,2.9,2.9,2.9, 2.9,2.8,2.8,2.8,2.8, 2.6,2.6,2.5,2.5,2.6, 2.6,2.6,2.5,2.5,2.6],
+      "line3":     [2.8,2.8,2.7,2.7,2.7, 2.7,2.6,2.6,2.6,2.6, 2.3,2.3,2.2,2.2,2.3, 2.3,2.3,2.2,2.2,2.3],
+      "paceActual":[0,0,1,2,3, 3,3,3,3,3, 4,5,6,7,7, 8,9,10,11,11],
+      "paceGoal":  [0.6,1.2,1.8,2.4,3.0, 3.6,4.2,4.8,5.4,6.0, 6.6,7.2,7.8,8.4,9.0, 9.6,10.2,10.8,11.4,12.0],
+      "ytd": [11, 7, 0, 2, 0],
+      "bestWorst": {
+        "best":  { "label": "Wednesday",       "value": 31 },
+        "worst": { "label": "Tuesday",         "value": 14 }
+      }
+    },
+    "month": {
+      "labels":    ["WW43/25","WW44/25","WW45/25","WW46/25","WW47/25","WW48/25","WW49/25","WW50/25","WW51/25","WW52/25","WW1","WW2","WW3","WW4","WW5","WW6","WW7","WW8","WW9","WW10","WW11","WW12","WW13","WW14","WW15","WW16"],
+      "barLabels": ["WW12","WW13","WW14","WW15","WW16"],
+      "barData":   [3, 2, 2, 2, 3],
+      "line1":     [2.3,2.2,2.3,2.4,2.3,2.3,2.4,2.2,2.3,2.4, 2.0,2.1,2.1,2.2,2.1,2.2,2.2,2.3,2.2,2.2,2.3,2.4,2.2,2.2,2.3,2.4],
+      "line2":     [2.8,2.7,2.8,2.9,2.8,2.8,2.9,2.7,2.8,2.9, 2.5,2.6,2.6,2.7,2.6,2.7,2.7,2.8,2.7,2.7,2.8,2.9,2.7,2.8,2.9,3.0],
+      "line3":     [2.5,2.4,2.5,2.6,2.5,2.5,2.6,2.4,2.5,2.6, 2.2,2.3,2.3,2.4,2.3,2.4,2.4,2.5,2.4,2.4,2.5,2.6,2.5,2.5,2.6,2.8],
+      "paceActual":[2,4,6,8,10,12,14,14,16,18, 18,20,23,25,28,32,35,38,41,45,48,51,53,55,58,61],
+      "paceGoal":  [3,6,9,12,15,18,21,24,27,30, 33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78],
+      "ytd": [61, 58, 5, 4, 2],
+      "bestWorst": {
+        "best":  { "label": "WW5 (2/Feb)",        "value": 5 },
+        "worst": { "label": "WW51 (15/Dec/25)",   "value": 0 }
+      }
+    },
+    "year": {
+      "labels":    ["May/25","Jun/25","Jul/25","Aug/25","Sep/25","Oct/25","Nov/25","Dec/25","Jan","Feb","Mar","Apr"],
+      "barLabels": ["Dec/25","Jan","Feb","Mar","Apr"],
+      "barData":   [5, 8, 10, 11, 9],
+      "line1":     [1.2,1.3,1.4,1.5,1.5,1.6,1.6,1.7,1.8,2.0,2.2,2.4],
+      "line2":     [1.6,1.7,1.8,2.0,2.0,2.1,2.1,2.2,2.3,2.5,2.7,3.0],
+      "line3":     [1.4,1.5,1.6,1.8,1.8,1.9,1.9,2.0,2.1,2.3,2.5,2.8],
+      "paceActual":[8, 18, 24, 34, 44, 54, 62, 67, 75, 85, 96, 105],
+      "paceGoal":  [12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144],
+      "ytd": [105, 128, 10, 10, 7],
+      "bestWorst": {
+        "best":  { "label": "Mar",    "value": 11 },
+        "worst": { "label": "Dec/25", "value": 5  }
+      }
+    },
+    "heatmap": {
+      "WW18/25": ["home","office","home","office","home"],
+      "WW19/25": ["office","home","home","office","home"],
+      "WW20/25": ["home","office","home","home","office"],
+      "WW21/25": ["office","home","office","home","home"],
+      "WW22/25": ["home","home","office","home","office"],
+      "WW23/25": ["office","home","home","office","home"],
+      "WW24/25": ["home","office","office","home","home"],
+      "WW25/25": ["office","home","home","office","home"],
+      "WW26/25": ["home","home","office","home","office"],
+      "WW27/25": ["vacation","vacation","vacation","vacation","vacation"],
+      "WW28/25": ["vacation","vacation","vacation","vacation","vacation"],
+      "WW29/25": ["home","office","home","home","office"],
+      "WW30/25": ["home","home","office","home","home"],
+      "WW31/25": ["office","home","home","home","home"],
+      "WW32/25": ["home","office","home","office","home"],
+      "WW33/25": ["office","home","office","home","home"],
+      "WW34/25": ["home","home","home","office","office"],
+      "WW35/25": ["office","home","home","office","home"],
+      "WW36/25": ["home","office","home","office","home"],
+      "WW37/25": ["office","home","home","office","home"],
+      "WW38/25": ["home","office","home","home","office"],
+      "WW39/25": ["office","home","office","home","home"],
+      "WW40/25": ["home","home","office","home","office"],
+      "WW41/25": ["office","home","home","office","home"],
+      "WW42/25": ["home","office","home","office","home"],
+      "WW43/25": ["home","office","home","office","home"],
+      "WW44/25": ["office","home","home","home","office"],
+      "WW45/25": ["home","office","home","office","home"],
+      "WW46/25": ["home","home","office","home","office"],
+      "WW47/25": ["office","home","home","office","home"],
+      "WW48/25": ["home","office","home","home","office"],
+      "WW49/25": ["office","home","office","home","home"],
+      "WW50/25": ["home","home","home","home","home"],
+      "WW51/25": ["home","home","office","office","home"],
+      "WW52/25": ["home","home","home","holiday","holiday"],
+      "WW1":     ["office","office","office","office","home"],
+      "WW2":     ["office","office","office","home","home"],
+      "WW3":     ["home","office","home","office","office"],
+      "WW4":     ["vacation","vacation","vacation","vacation","vacation"],
+      "WW5":     ["office","home","office","office","home"],
+      "WW6":     ["home","office","office","home","office"],
+      "WW7":     ["office","office","home","home","office"],
+      "WW8":     ["oncalloff","oncalloff","oncalloff","oncalloff","oncalloff"],
+      "WW9":     ["home","office","home","office","office"],
+      "WW10":    ["office","office","office","home","office"],
+      "WW11":    ["holiday","holiday","holiday","home","home"],
+      "WW12":    ["office","office","office","home","office"],
+      "WW13":    ["home","home","office","home","home"],
+      "WW14":    ["office","office","home","office","home"],
+      "WW15":    ["office","home","office","office","home"],
+      "WW16":    ["office","home","office","",""]
+    }
+  }
+}
+;
+
   // ---- Dark mode toggle ----
   function toggleDark(btn) {
     document.body.classList.toggle('dark');
     const isDark = document.body.classList.contains('dark');
     btn.textContent = isDark ? '☀️' : '🌙';
     const newColors = isDark ? ytdColorsDark : ytdColorsLight;
-    ['o','h','w','l'].forEach(v => {
-      const c = charts[`ytd-${v}`];
-      if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
-    });
-  }
-
-  // ---- View switcher ----
-  function showView(name, btn) {
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('view-' + name).classList.add('active');
-    btn.classList.add('active');
+    const c = charts['ytd-o'];
+    if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
   }
 
   // ---- Calendar ----
-  const aprilTypes = {
-    1:'home', 2:'office', 3:'office',
-    4:'weekend-day', 5:'weekend-day',
-    6:'home', 7:'office', 8:'home', 9:'office', 10:'office',
-    11:'weekend-day', 12:'weekend-day',
-    13:'home', 14:'office', 15:'home', 16:'office', 17:'future',
-    18:'weekend-day', 19:'weekend-day',
-    20:'office',21:'home',22:'vacation',23:'holiday',24:'oncalloff',
-    25:'weekend-day',26:'weekend-day',
-    27:'future',28:'future',29:'future',30:'future'
-  };
-
-  // April 2026: starts Wednesday (offset 2), ends Thursday (30 days)
-  // Prev month overflow: Mar 30 (Mon), Mar 31 (Tue)
-  // Next month overflow: May 1 (Fri), May 2 (Sat), May 3 (Sun)
-  const prevDays = [
-    { day: 30, type: 'office' },  // Mar 30 Mon — mock: office
-    { day: 31, type: 'home'   }   // Mar 31 Tue — mock: home
-  ];
-  const nextDays = [
-    { day: 1, type: 'future'      }, // May 1 Fri
-    { day: 2, type: 'weekend-day' }, // May 2 Sat
-    { day: 3, type: 'weekend-day' }  // May 3 Sun
-  ];
-
-  function buildCalendar(id, overrides, todayNum) {
+  function buildCalendar(id) {
     const el = document.getElementById(id);
     if (!el) return;
+    const types       = DATA.calendar.types;
+    const calPrevDays = DATA.calendar.prevDays;
+    const calNextDays = DATA.calendar.nextDays;
+    const todayNum    = DATA.calendar.today;
+    const daysInMonth = DATA.calendar.daysInMonth;
+
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
       const h = document.createElement('div');
       h.className = 'cal-day-name'; h.textContent = d; el.appendChild(h);
     });
-    // Previous month overflow
-    prevDays.forEach(({ day, type }) => {
+    calPrevDays.forEach(({ day, type }) => {
       const cell = document.createElement('div');
       cell.className = `cal-day ${type} other-month`;
       cell.textContent = day;
       el.appendChild(cell);
     });
-    // Current month days
-    for (let d = 1; d <= 30; d++) {
+    for (let d = 1; d <= daysInMonth; d++) {
       const cell = document.createElement('div');
-      const type = (overrides && overrides[d]) || aprilTypes[d] || 'future';
+      const type = types[d] || 'future';
       cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
       cell.textContent = d;
       el.appendChild(cell);
     }
-    // Next month overflow
-    nextDays.forEach(({ day, type }) => {
+    calNextDays.forEach(({ day, type }) => {
       const cell = document.createElement('div');
       cell.className = `cal-day ${type} other-month`;
       cell.textContent = day;
@@ -1155,16 +743,13 @@
     });
   }
 
-  buildCalendar('cal-o', { 16:'office' },            16);
-  buildCalendar('cal-h', { 17:'home' },               17);
-  buildCalendar('cal-w', { 16:'future' },             18);
-  buildCalendar('cal-l', { 16:'office' },             16);
+  buildCalendar('cal-o');
 
-  // ---- CSS variable reader (reads from whichever theme/mode is active at page load) ----
+  // ---- CSS variable reader ----
   const cv = s => getComputedStyle(document.documentElement).getPropertyValue(s).trim();
 
   // ---- Rings ----
-  const GOAL = 3;
+  const GOAL = DATA.charts.goal;
   const ringFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
   const ringBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
   const chartBarFill    = cv('--chart-bar-fill');
@@ -1201,58 +786,21 @@
       }
     });
   }
-  // Goal Hit Rate: actual YTD office days / sum of monthly Office Day Goals
-  // Office Day Goal per month = ceil(workDays × weekGoal/5), already in sheet
-  const GOAL_ACTUAL = 32, GOAL_TARGET = 50; // Jan(11/10) + Feb(12/12) + Mar(4/14) + Apr(5/14)
-  const goalPct   = GOAL_ACTUAL / GOAL_TARGET;
+
+  const goalPct   = DATA.rings.goalActual / DATA.rings.goalTarget;
   const goalLabel = Math.round(goalPct * 100) + '%';
 
-  ['o','h','w','l'].forEach(v => {
-    if (!document.getElementById(`r-${v}-1`)) return;
-    makeRing(`r-${v}-1`, 2.4, 0);
-    makeRing(`r-${v}-2`, 2.8, 1);
-    makeRing(`r-${v}-3`, 2.1, 2);
-    makeRingPct(`r-${v}-4`, goalPct, 3);
-    document.querySelector(`#r-${v}-4`).closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
-  });
+  makeRing('r-o-1', DATA.rings.weekAvg,  0);
+  makeRing('r-o-2', DATA.rings.monthAvg, 1);
+  makeRing('r-o-3', DATA.rings.yearAvg,  2);
+  makeRingPct('r-o-4', goalPct, 3);
+  document.querySelector('#r-o-4').closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
 
   // ---- Chart period data ----
-  // NOTE: All data below is simulated for UI preview purposes.
-  // When connected to live Google Sheet data, replace with real values following these rules:
-  //   Daily tab  — always show last 4 weeks (20 working days). If current week ≤ WW3, backfill
-  //                from last year. Last-year dates: "D/Mon/YY" (e.g. 15/Dec/25).
-  //                Current-year dates: "D/Mon" (e.g. 5/Jan). Labels ending "/25" auto-gray.
-  //   Weekly tab — always show last 5 weeks (bar) and last 6 months (line + pace). If current
-  //                week ≤ WW4, backfill from last year. Last-year WW labels: "WWn/25"
-  //                (e.g. WW51/25). Current-year: "WWn". Labels ending "/25" auto-gray.
-  //   Monthly tab — always show last 5 months (bar) and last 12 months (line + pace). Last-year
-  //                 months: "Mon/25" (e.g. Dec/25). Current-year months: "Mon" (e.g. Jan).
-  //                 Labels ending "/25" auto-gray.
   const periodData = {
-    week: {
-      barLabels: ['Mon','Tue','Wed','Thu','Fri'],
-      barData:   [0, 1, 1, 1, 0],
-      lineLabels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
-      line1: [2.4,2.4,2.3,2.3,2.3, 2.3,2.2,2.2,2.2,2.2, 2.1,2.1,2.0,2.0,2.1, 2.1,2.1,2.0,2.0,2.1],
-      line2: [3.0,3.0,2.9,2.9,2.9, 2.9,2.8,2.8,2.8,2.8, 2.6,2.6,2.5,2.5,2.6, 2.6,2.6,2.5,2.5,2.6],
-      line3: [2.8,2.8,2.7,2.7,2.7, 2.7,2.6,2.6,2.6,2.6, 2.3,2.3,2.2,2.2,2.3, 2.3,2.3,2.2,2.2,2.3]
-    },
-    month: {
-      barLabels: ['WW12','WW13','WW14','WW15','WW16'],
-      barData:   [3, 2, 2, 2, 3],
-      lineLabels: ['WW43/25','WW44/25','WW45/25','WW46/25','WW47/25','WW48/25','WW49/25','WW50/25','WW51/25','WW52/25','WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
-      line1: [2.3,2.2,2.3,2.4,2.3,2.3,2.4,2.2,2.3,2.4, 2.0,2.1,2.1,2.2,2.1,2.2,2.2,2.3,2.2,2.2,2.3,2.4,2.2,2.2,2.3,2.4],
-      line2: [2.8,2.7,2.8,2.9,2.8,2.8,2.9,2.7,2.8,2.9, 2.5,2.6,2.6,2.7,2.6,2.7,2.7,2.8,2.7,2.7,2.8,2.9,2.7,2.8,2.9,3.0],
-      line3: [2.5,2.4,2.5,2.6,2.5,2.5,2.6,2.4,2.5,2.6, 2.2,2.3,2.3,2.4,2.3,2.4,2.4,2.5,2.4,2.4,2.5,2.6,2.5,2.5,2.6,2.8]
-    },
-    year: {
-      barLabels: ['Dec/25','Jan','Feb','Mar','Apr'],
-      barData:   [5, 8, 10, 11, 9],
-      lineLabels: ['May/25','Jun/25','Jul/25','Aug/25','Sep/25','Oct/25','Nov/25','Dec/25','Jan','Feb','Mar','Apr'],
-      line1: [1.2,1.3,1.4,1.5,1.5,1.6,1.6,1.7,1.8,2.0,2.2,2.4],
-      line2: [1.6,1.7,1.8,2.0,2.0,2.1,2.1,2.2,2.3,2.5,2.7,3.0],
-      line3: [1.4,1.5,1.6,1.8,1.8,1.9,1.9,2.0,2.1,2.3,2.5,2.8]
-    },
+    week:  { barLabels: DATA.charts.week.barLabels,  barData: DATA.charts.week.barData,  lineLabels: DATA.charts.week.labels,  line1: DATA.charts.week.line1,  line2: DATA.charts.week.line2,  line3: DATA.charts.week.line3  },
+    month: { barLabels: DATA.charts.month.barLabels, barData: DATA.charts.month.barData, lineLabels: DATA.charts.month.labels, line1: DATA.charts.month.line1, line2: DATA.charts.month.line2, line3: DATA.charts.month.line3 },
+    year:  { barLabels: DATA.charts.year.barLabels,  barData: DATA.charts.year.barData,  lineLabels: DATA.charts.year.labels,  line1: DATA.charts.year.line1,  line2: DATA.charts.year.line2,  line3: DATA.charts.year.line3  }
   };
 
   // Store chart instances
@@ -1260,8 +808,8 @@
 
   // ---- Current date references ----
   const _today = new Date();
-  const _todayDow = _today.getDay(); // 0=Sun,1=Mon…
-  const TODAY_DOW_IDX = _todayDow === 0 ? -1 : _todayDow - 1; // Mon=0…Fri=4, -1=weekend
+  const _todayDow = _today.getDay();
+  const TODAY_DOW_IDX = _todayDow === 0 ? -1 : _todayDow - 1;
   const DOW_LABELS = ['Mon','Tue','Wed','Thu','Fri'];
 
   function paceHighlightArrays(n, labels) {
@@ -1274,7 +822,7 @@
     return { colors, sizes };
   }
 
-  const xHiLabel = {}; // canvasId → highlight label string (match by label, not index — index breaks with autoSkip)
+  const xHiLabel = {};
   const xTickColor = ctx => {
     const target = xHiLabel[ctx.chart.canvas.id];
     const label = ctx.label ?? ctx.chart.data.labels?.[ctx.index];
@@ -1317,8 +865,6 @@
     return chart;
   }
 
-  // Rotating spotlight: each position, one line gets a big dot, the others stay small.
-  // Rotation order per index mod 3: 0=purple(10/12), 1=green(8/10), 2=blue(8/12)
   function linePointRadii(n, labels) {
     const big = 5, small = 2;
     const prev = labels ? labels.map(l => l.endsWith('/25')) : Array(n).fill(false);
@@ -1374,25 +920,19 @@
     return lineChart;
   }
 
-  // Init all charts on week period
-  ['o','h','w','l'].forEach(v => {
-    if (!document.getElementById(`bar-${v}`)) return;
-    charts[`bar-${v}`]  = makeBarChart(`bar-${v}`,  'week');
-    charts[`line-${v}`] = makeLineChart(`line-${v}`, 'week');
-  });
+  charts['bar-o']  = makeBarChart('bar-o',  'week');
+  charts['line-o'] = makeLineChart('line-o', 'week');
 
   // ---- Period switcher ----
   const barTitles  = { week:'Office days by weekday', month:'Office days by week', year:'Office days by month' };
   const lineTitles = { week:'Last 4 weeks', month:'Last 6 months', year:'Last 12 months' };
 
   function setPeriod(view, period, btn) {
-    // Update active button within this charts card
     btn.closest('.period-tabs').querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
     const d = periodData[period];
 
-    // Update bar chart
     const bar = charts[`bar-${view}`];
     const bc = barColorArrays(d.barLabels);
     bar.data.labels = d.barLabels;
@@ -1406,7 +946,6 @@
     bar.update();
     document.getElementById(`bar-title-${view}`).textContent = barTitles[period];
 
-    // Update line chart
     const line = charts[`line-${view}`];
     const radii = linePointRadii(d.lineLabels.length, d.lineLabels);
     line.data.labels = d.lineLabels;
@@ -1417,7 +956,6 @@
     line.update();
     document.getElementById(`line-title-${view}`).textContent = lineTitles[period];
 
-    // Update pace chart
     const pd = paceByPeriod[period];
     const pace = charts[`pace-${view}`];
     const ph = paceHighlightArrays(pd.labels.length, pd.labels);
@@ -1429,7 +967,6 @@
     xHiLabel[`pace-${view}`] = pd.labels[pd.labels.length - 1];
     pace.update();
 
-    // Update YTD split donut, title, and row counts
     const ytdData = ytdByPeriod[period];
     const ytdChart = charts[`ytd-${view}`];
     ytdChart.data.datasets[0].data = ytdData;
@@ -1445,7 +982,6 @@
     chartsCard.querySelectorAll('.bw-weekly') .forEach(el => el.style.display = period === 'month' ? 'flex' : 'none');
     chartsCard.querySelectorAll('.bw-monthly').forEach(el => el.style.display = period === 'year'  ? 'flex' : 'none');
 
-    // Rebuild heatmap for new period window and update title
     buildHeatmap(`heatmap-${view}`, hmDataByPeriod[period]);
     const hmTitleEl = document.querySelector(`#heatmap-${view}`).closest('.chart-item').querySelector('.chart-item-title');
     hmTitleEl.textContent = hmTitles[period];
@@ -1453,22 +989,11 @@
 
   // ---- Pace Tracker ----
   const paceByPeriod = {
-    week: {
-      labels: ['15/Dec/25','16/Dec/25','17/Dec/25','18/Dec/25','19/Dec/25','22/Dec/25','23/Dec/25','24/Dec/25','25/Dec/25','26/Dec/25','5/Jan','6/Jan','7/Jan','8/Jan','9/Jan','12/Jan','13/Jan','14/Jan','15/Jan','16/Jan'],
-      actual: [0,0,1,2,3, 3,3,3,3,3, 4,5,6,7,7, 8,9,10,11,11],
-      goal:   [0.6,1.2,1.8,2.4,3.0, 3.6,4.2,4.8,5.4,6.0, 6.6,7.2,7.8,8.4,9.0, 9.6,10.2,10.8,11.4,12.0]
-    },
-    month: {
-      labels: ['WW43/25','WW44/25','WW45/25','WW46/25','WW47/25','WW48/25','WW49/25','WW50/25','WW51/25','WW52/25','WW1','WW2','WW3','WW4','WW5','WW6','WW7','WW8','WW9','WW10','WW11','WW12','WW13','WW14','WW15','WW16'],
-      actual: [2,4,6,8,10,12,14,14,16,18, 18,20,23,25,28,32,35,38,41,45,48,51,53,55,58,61],
-      goal:   [3,6,9,12,15,18,21,24,27,30, 33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78]
-    },
-    year:  {
-      labels: ['May/25','Jun/25','Jul/25','Aug/25','Sep/25','Oct/25','Nov/25','Dec/25','Jan','Feb','Mar','Apr'],
-      actual: [8, 18, 24, 34, 44, 54, 62, 67, 75, 85, 96, 105],
-      goal:   [12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144]
-    },
+    week:  { labels: DATA.charts.week.labels,  actual: DATA.charts.week.paceActual,  goal: DATA.charts.week.paceGoal  },
+    month: { labels: DATA.charts.month.labels, actual: DATA.charts.month.paceActual, goal: DATA.charts.month.paceGoal },
+    year:  { labels: DATA.charts.year.labels,  actual: DATA.charts.year.paceActual,  goal: DATA.charts.year.paceGoal  }
   };
+
   function makePaceChart(id, period = 'week') {
     const pd = paceByPeriod[period];
     const ph = paceHighlightArrays(pd.labels.length, pd.labels);
@@ -1513,9 +1038,8 @@
     });
     return paceChart;
   }
-  ['o','h','w','l'].forEach(v => { if (document.getElementById(`pace-${v}`)) charts[`pace-${v}`] = makePaceChart(`pace-${v}`, 'week'); });
+  charts['pace-o'] = makePaceChart('pace-o', 'week');
 
-  // Replay animation at correct size after ResizeObserver has settled
   setTimeout(() => {
     ['bar-o', 'line-o', 'pace-o'].forEach(id => {
       if (charts[id]) { charts[id].reset(); charts[id].update(); }
@@ -1523,14 +1047,14 @@
   }, 150);
 
   // ---- YTD Split donut ----
-  // [Office, Home, Vacation, Holiday, OnCall day off]
   const ytdByPeriod = {
-    week:  [11, 7,   0,  2,  0],   // last 4 weeks  (20 working days)
-    month: [61, 58,  5,  4,  2],   // last 6 months (26 weeks = 130 days)
-    year:  [105, 128, 10, 10, 7],  // last 12 months (~260 days)
+    week:  DATA.charts.week.ytd,
+    month: DATA.charts.month.ytd,
+    year:  DATA.charts.year.ytd
   };
   const ytdTitles = { week:'Last 4 weeks split', month:'Last 6 months split', year:'Last 12 months split' };
-  const ytdLabels     = ['Office','Home','Vacation','Holiday','OnCall day off'];
+  const ytdLabels = ['Office','Home','Vacation','Holiday','OnCall day off'];
+
   function makeStripePattern(c1, c2) {
     const sz = 8;
     const patCanvas = document.createElement('canvas');
@@ -1583,53 +1107,22 @@
       }
     });
   }
-  ['o','h','w','l'].forEach(v => { if (document.getElementById(`ytd-${v}`)) charts[`ytd-${v}`] = makeYtdChart(`ytd-${v}`); });
+  charts['ytd-o'] = makeYtdChart('ytd-o');
+
+  // Initialize YTD row from DATA
+  const _ytdRow = document.querySelector('#cy-o .ytd-row');
+  if (_ytdRow) {
+    const [_off, _hm, _vac, _hol, _oc] = ytdByPeriod.week;
+    _ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${_off}</strong></span><span class="ytd-item home-ytd">Home <strong>${_hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${_vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${_hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${_oc}</strong></span>`;
+  }
 
   // ---- Weekday Heatmap ----
-  const hmDataYear = {
-    'WW18/25':['home','office','home','office','home'],    'WW19/25':['office','home','home','office','home'],
-    'WW20/25':['home','office','home','home','office'],    'WW21/25':['office','home','office','home','home'],
-    'WW22/25':['home','home','office','home','office'],    'WW23/25':['office','home','home','office','home'],
-    'WW24/25':['home','office','office','home','home'],    'WW25/25':['office','home','home','office','home'],
-    'WW26/25':['home','home','office','home','office'],
-    'WW27/25':['vacation','vacation','vacation','vacation','vacation'],
-    'WW28/25':['vacation','vacation','vacation','vacation','vacation'],
-    'WW29/25':['home','office','home','home','office'],    'WW30/25':['home','home','office','home','home'],
-    'WW31/25':['office','home','home','home','home'],      'WW32/25':['home','office','home','office','home'],
-    'WW33/25':['office','home','office','home','home'],    'WW34/25':['home','home','home','office','office'],
-    'WW35/25':['office','home','home','office','home'],    'WW36/25':['home','office','home','office','home'],
-    'WW37/25':['office','home','home','office','home'],    'WW38/25':['home','office','home','home','office'],
-    'WW39/25':['office','home','office','home','home'],    'WW40/25':['home','home','office','home','office'],
-    'WW41/25':['office','home','home','office','home'],    'WW42/25':['home','office','home','office','home'],
-    'WW43/25':['home','office','home','office','home'],    'WW44/25':['office','home','home','home','office'],
-    'WW45/25':['home','office','home','office','home'],    'WW46/25':['home','home','office','home','office'],
-    'WW47/25':['office','home','home','office','home'],    'WW48/25':['home','office','home','home','office'],
-    'WW49/25':['office','home','office','home','home'],
-    'WW50/25':['home','home','home','home','home'],
-    'WW51/25':['home','home','office','office','home'],
-    'WW52/25':['home','home','home','holiday','holiday'],
-    WW1: ['office','office','office','office','home'],
-    WW2: ['office','office','office','home','home'],
-    WW3: ['home','office','home','office','office'],
-    WW4: ['vacation','vacation','vacation','vacation','vacation'],
-    WW5: ['office','home','office','office','home'],
-    WW6: ['home','office','office','home','office'],
-    WW7: ['office','office','home','home','office'],
-    WW8: ['oncalloff','oncalloff','oncalloff','oncalloff','oncalloff'],
-    WW9: ['home','office','home','office','office'],
-    WW10:['office','office','office','home','office'],
-    WW11:['holiday','holiday','holiday','home','home'],
-    WW12:['office','office','office','home','office'],
-    WW13:['home','home','office','home','home'],
-    WW14:['office','office','home','office','home'],
-    WW15:['office','home','office','office','home'],
-    WW16:['office','home','office','',''],
-  };
-  const hmEntries = Object.entries(hmDataYear);
-  const hmDataMonth = Object.fromEntries(hmEntries.slice(-26)); // last 26 weeks
-  const hmDataWeek  = Object.fromEntries(hmEntries.slice(-4));  // last 4 weeks
+  const hmDataYear     = DATA.charts.heatmap;
+  const hmEntries      = Object.entries(hmDataYear);
+  const hmDataMonth    = Object.fromEntries(hmEntries.slice(-26));
+  const hmDataWeek     = Object.fromEntries(hmEntries.slice(-4));
   const hmDataByPeriod = { week: hmDataWeek, month: hmDataMonth, year: hmDataYear };
-  const hmTitles = { week:'4 weeks heatmap', month:'6 months heatmap', year:'12 months heatmap' };
+  const hmTitles       = { week:'4 weeks heatmap', month:'6 months heatmap', year:'12 months heatmap' };
 
   const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
 
@@ -1650,7 +1143,6 @@
         el.appendChild(cell);
       });
     });
-    // Legend (create once per chart-body)
     const chartBody = el.parentElement.parentElement;
     if (!chartBody.querySelector('.hm-legend')) {
       const legend = document.createElement('div');
@@ -1665,7 +1157,7 @@
       chartBody.appendChild(legend);
     }
   }
-  ['o','h','w','l'].forEach(v => buildHeatmap(`heatmap-${v}`, hmDataByPeriod.week));
+  buildHeatmap('heatmap-o', hmDataByPeriod.week);
 </script>
 
 

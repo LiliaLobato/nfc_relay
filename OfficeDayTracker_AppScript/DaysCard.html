@@ -2,15 +2,15 @@
       <div class="card-label">Days still needed</div>
       <div class="days-pills">
         <div class="day-pill">
-          <div class="day-pill-count">1</div>
+          <div class="day-pill-count"><?= data.days.thisWeek ?></div>
           <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
+          <div class="day-pill-ww">WW <?= data.weekNumber ?></div>
         </div>
         <div class="day-pill">
-          <div class="day-pill-count">2</div>
+          <div class="day-pill-count"><?= data.days.nextWeek ?></div>
           <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
+          <div class="day-pill-ww">WW <?= data.days.nextWeekNumber ?></div>
         </div>
       </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
+      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: <?= data.days.vacationPlanned ?> vacation · <?= data.days.oncallPlanned ?> on call day off · <?= data.days.holidayPlanned ?> holiday</span><br>You need <strong><?= data.days.daysPerWeekNeeded ?> days/week</strong> over the next <?= data.days.monthsRemaining ?> months to hit your <?= data.charts.goal ?>-day/week goal</div>
     </div>

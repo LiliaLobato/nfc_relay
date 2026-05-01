@@ -1,4 +1,5 @@
     <div class="card header-card">
+      <div class="already-logged-banner <?!= data.alreadyLogged ?> <?= data.status ?>">Already logged</div>
       <div class="status-badge <?= data.status ?>"><?= data.statusLabel ?></div>
       <div class="header-ww">WW<?= data.weekNumber ?></div>
       <div class="header-date"><?= data.date ?> — <?= data.time ?></div>
