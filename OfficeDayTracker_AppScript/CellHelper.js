@@ -26,8 +26,7 @@ function CalculateCurrentDayCell(dayOfWeek, workWeek){
 function GetOfficeDaysCellNeeded(workWeek) {
   const row = workWeek + wwRowOffset;
   return {
-    thisWeek:     sheet.getRange("N" + row).getValue(),
-    nextWeek:     sheet.getRange("N" + (row + 1)).getValue(),
-    nextNextWeek: sheet.getRange("N" + (row + 2)).getValue()
+    thisWeek: sheet.getRange("N" + row).getValue(),
+    nextWeek: sheet.getRange("N" + (row + 1)).getValue(),
   };
 }

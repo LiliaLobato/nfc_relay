@@ -31,7 +31,12 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  template.data = buildPageData(key);
+  try {
+    template.data = buildPageData(key);
+  } catch (e) {
+    console.log('Unhandled error:', e.message);
+    template.data = { status: 'fatal', errorMessage: e.message };
+  }
 
   return template.evaluate()
     .setTitle('Office Day Tracker')
