@@ -54,8 +54,8 @@ THEME_STEMS = {
 _DATA_TAG         = re.compile(r'<\?!=\s*JSON\.stringify\(data\)\s*\?>')
 _DATA_FIELD_TAG   = re.compile(r'<\?!=\s*data\.(\w+)\s*\?>')
 _DATA_ESCAPED_TAG = re.compile(r'<\?=\s*data\.([\w]+(?:\.[\w]+)*)\s*\?>')
-_INCLUDE_TAG      = re.compile(r"<\?!=\s*include\(['\"](\w+)['\"]\)\s*\?>")
-_THEME_TAG        = re.compile(r"<\?!=\s*include\(['\"]Theme['\"]\s*\+\s*theme\)\s*\?>")
+_INCLUDE_TAG      = re.compile(r"<\?!=\s*Include\(['\"](\w+)['\"]\)\s*\?>")
+_THEME_TAG        = re.compile(r"<\?!=\s*Include\(['\"]Theme['\"]\s*\+\s*theme\)\s*\?>")
 
 _MOCK_DATA_FIELDS = {
     'errorMessage': 'Could not load spreadsheet data. Check that the sheet is accessible and try again.',

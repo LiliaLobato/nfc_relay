@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-validate.py — two-layer validation of stitched Office Day Tracker output.
-
-Two independent layers:
+validate.py — three-layer validation of stitched Office Day Tracker output.
 
   Layer 1 — Health check
     Runs stitch.py --theme Default --data {View} for each full-data view and
@@ -17,20 +15,28 @@ Two independent layers:
     of bug that Layer 1 cannot see. One or two checks per card — enough to
     verify structural intent without becoming a maintenance burden.
 
+  Layer 3 — DATA schema checks
+    Extracts the inlined DATA JSON from the stitched HTML and validates that
+    each field has the expected type and shape. Catches schema mismatches
+    between what the JS expects and what TestData provides — e.g. a missing
+    array, a dict that became a list, or a required key that was never added.
+    This is the layer that would have caught charts.types being undefined.
+
 Pipeline:
   stitch.py  →  assembles HTML, resolves tags, writes _preview_*.html
-  validate.py →  calls stitch, reads output, runs both layers
+  validate.py →  calls stitch, reads output, runs all layers
 
 Usage:
-  python validate.py                    run all views, both layers
+  python validate.py                    run all views, all layers
   python validate.py --view Office      run only the Office view
   python validate.py --layer 1          run only Layer 1 (health checks)
   python validate.py --layer 2          run only Layer 2 (spot checks)
-  python validate.py --verbose          show unresolved tag details and
-                                        failing spot-check patterns
+  python validate.py --layer 3          run only Layer 3 (schema checks)
+  python validate.py --verbose          show details on failures
 """
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -60,9 +66,9 @@ SPOT_CHECKS = [
     ('TitleCard  weekNumber in header-ww',             'Office', r'header-ww">WW16<'),
 
     # RingsCard — avg values inside the correct ring-center slots
-    ('RingsCard  weekAvg in ring1 center',    'Office', r'color:var\(--ring1\)">2\.4<'),
-    ('RingsCard  monthAvg in ring2 center',   'Office', r'color:var\(--ring2\)">2\.8<'),
-    ('RingsCard  yearAvg in ring3 center',    'Office', r'color:var\(--ring3\)">2\.1<'),
+    ('RingsCard  best10of12 in ring1 center',  'Office', r'color:var\(--ring1\)">2\.4<'),
+    ('RingsCard  best8of12 in ring2 center',   'Office', r'color:var\(--ring2\)">2\.8<'),
+    ('RingsCard  best8of10 in ring3 center',   'Office', r'color:var\(--ring3\)">2\.1<'),
     ('RingsCard  rawAverage in absence-stat', 'Office', r'absence-stat[^<]*<strong>2\.1<'),
     ('RingsCard  projection: avg + days',     'Office', r'2\.4 days/week.{0,60}15/22'),
 
@@ -92,6 +98,27 @@ SPOT_CHECKS = [
 
 
 # ---------------------------------------------------------------------------
+# Layer 3 schema checks
+# Each entry: (label, dot-path, predicate, expected_description)
+# Numeric path segments index into lists: 'charts.types.0.type'
+# Only run on FULL_VIEWS — minimal views don't carry full chart data.
+# ---------------------------------------------------------------------------
+SCHEMA_CHECKS = [
+    ('charts.types           non-empty array',   'charts.types',         lambda v: isinstance(v, list) and len(v) > 0,  'non-empty array'),
+    ('charts.types[0].type   non-empty string',  'charts.types.0.type',  lambda v: isinstance(v, str)  and len(v) > 0,  'non-empty string'),
+    ('charts.types[0].label  non-empty string',  'charts.types.0.label', lambda v: isinstance(v, str)  and len(v) > 0,  'non-empty string'),
+    ('charts.week.ytd        object not array',  'charts.week.ytd',      lambda v: isinstance(v, dict),                 'object'),
+    ('charts.month.ytd       object not array',  'charts.month.ytd',     lambda v: isinstance(v, dict),                 'object'),
+    ('charts.year.ytd        object not array',  'charts.year.ytd',      lambda v: isinstance(v, dict),                 'object'),
+    ('charts.goal            number',            'charts.goal',          lambda v: isinstance(v, (int, float)),         'number'),
+    ('charts.heatmap         non-empty object',  'charts.heatmap',       lambda v: isinstance(v, dict) and len(v) > 0, 'non-empty object'),
+    ('charts.week.labels     non-empty array',   'charts.week.labels',   lambda v: isinstance(v, list) and len(v) > 0, 'non-empty array'),
+    ('charts.month.labels    non-empty array',   'charts.month.labels',  lambda v: isinstance(v, list) and len(v) > 0, 'non-empty array'),
+    ('charts.year.labels     non-empty array',   'charts.year.labels',   lambda v: isinstance(v, list) and len(v) > 0, 'non-empty array'),
+]
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -116,6 +143,70 @@ def _build_cache(views):
         if not ok and html is None:
             print(f'  ERROR  stitch failed for {view}:\n{stderr[:300]}', file=sys.stderr)
     return cache
+
+
+# ---------------------------------------------------------------------------
+# Layer 3
+# ---------------------------------------------------------------------------
+
+def _extract_data(html):
+    """Parse the DATA object inlined in the stitched HTML via raw_decode."""
+    m = re.search(r'const\s+DATA\s*=\s*', html)
+    if not m:
+        return None, 'const DATA not found in HTML'
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(html, m.end())
+        return obj, None
+    except json.JSONDecodeError as e:
+        return None, f'JSON parse error: {e}'
+
+
+def _get_path(obj, path):
+    """Navigate obj by dot-path; numeric segments index into lists."""
+    for part in path.split('.'):
+        if obj is None:
+            return None
+        if isinstance(obj, list):
+            try:
+                obj = obj[int(part)]
+            except (ValueError, IndexError):
+                return None
+        elif isinstance(obj, dict):
+            obj = obj.get(part)
+        else:
+            return None
+    return obj
+
+
+def run_layer3(views, cache, verbose=False):
+    """DATA schema checks — inlined DATA must have the right types and shapes."""
+    all_ok = True
+    for view in views:
+        if view in MINIMAL_VIEWS:
+            print(f'  SKIP   L3  [{view}] minimal TestData')
+            continue
+        html = cache.get(view, '')
+        if not html:
+            print(f'  FAIL   L3  [{view}] no stitch output')
+            all_ok = False
+            continue
+        data, err = _extract_data(html)
+        if data is None:
+            print(f'  FAIL   L3  [{view}] could not extract DATA: {err}')
+            all_ok = False
+            continue
+        for label, path, predicate, expected in SCHEMA_CHECKS:
+            val = _get_path(data, path)
+            ok  = predicate(val)
+            tag = 'OK  ' if ok else 'FAIL'
+            print(f'  {tag}   L3  [{view}] {label}')
+            if not ok:
+                all_ok = False
+                if verbose:
+                    print(f'               path:     DATA.{path}')
+                    print(f'               expected: {expected}')
+                    print(f'               got:      {repr(val)[:80]}')
+    return all_ok
 
 
 # ---------------------------------------------------------------------------
@@ -174,13 +265,14 @@ def main():
     parser = argparse.ArgumentParser(
         prog='validate.py',
         description=(
-            'Two-layer validation of stitched Office Day Tracker output.\n\n'
+            'Three-layer validation of stitched Office Day Tracker output.\n\n'
             'Layer 1 — Health:    no [missing: data.X] placeholders in output.\n'
-            'Layer 2 — Structure: key TestData values land in correct HTML slots.'
+            'Layer 2 — Structure: key TestData values land in correct HTML slots.\n'
+            'Layer 3 — Schema:    inlined DATA fields have the right types/shapes.'
         ),
         epilog=(
             'Views:   Office, Home, Weekend, Logged (full data)\n'
-            '         Fatal, Unauth (minimal data - Layer 1 skipped)\n\n'
+            '         Fatal, Unauth (minimal data - Layers 1 & 3 skipped)\n\n'
             'Exit:    0 = all checks passed   1 = one or more checks failed\n\n'
             'Tip: run stitch.py --data Office first to regenerate previews,\n'
             '     then validate.py to check them - or just run validate.py\n'
@@ -196,9 +288,9 @@ def main():
     )
     parser.add_argument(
         '--layer',
-        choices=['1', '2'],
+        choices=['1', '2', '3'],
         metavar='N',
-        help='Run only layer 1 (health) or layer 2 (spot checks). Default: both.',
+        help='Run only one layer: 1 (health), 2 (spot checks), 3 (schema). Default: all.',
     )
     parser.add_argument(
         '--verbose', action='store_true',
@@ -209,6 +301,7 @@ def main():
     views = [args.view] if args.view else ALL_VIEWS
     run_l1 = args.layer in (None, '1')
     run_l2 = args.layer in (None, '2')
+    run_l3 = args.layer in (None, '3')
 
     print(f'Running stitch for: {", ".join(views)} ...')
     cache = _build_cache(views)
@@ -224,6 +317,11 @@ def main():
     if run_l2:
         print('--- Layer 2: structural spot checks ---')
         all_ok = run_layer2(views, cache, verbose=args.verbose) and all_ok
+        print()
+
+    if run_l3:
+        print('--- Layer 3: DATA schema checks ---')
+        all_ok = run_layer3(views, cache, verbose=args.verbose) and all_ok
         print()
 
     print('All checks passed.' if all_ok else 'Checks failed — review above.')
