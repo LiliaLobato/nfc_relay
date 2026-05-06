@@ -93,9 +93,9 @@
   const goalPct   = DATA.rings.goalActual / DATA.rings.goalTarget;
   const goalLabel = Math.round(goalPct * 100) + '%';
 
-  makeRing('r-o-1', DATA.rings.weekAvg,  0);
-  makeRing('r-o-2', DATA.rings.monthAvg, 1);
-  makeRing('r-o-3', DATA.rings.yearAvg,  2);
+  makeRing('r-o-1', DATA.rings.best10of12, 0);
+  makeRing('r-o-2', DATA.rings.best8of12,  1);
+  makeRing('r-o-3', DATA.rings.best8of10,  2);
   makeRingPct('r-o-4', goalPct, 3);
   document.querySelector('#r-o-4').closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
 
@@ -273,13 +273,12 @@
 
     const ytdData = ytdByPeriod[period];
     const ytdChart = charts[`ytd-${view}`];
-    ytdChart.data.datasets[0].data = ytdData;
+    ytdChart.data.datasets[0].data = ytdToArray(ytdData);
     ytdChart.update();
     const ytdTitleEl = document.querySelector(`#cy-${view}`).closest('.chart-item').querySelector('.chart-item-title');
     ytdTitleEl.textContent = ytdTitles[period];
     const ytdRow = document.querySelector(`#cy-${view} .ytd-row`);
-    const [off, hm, vac, hol, oc] = ytdData;
-    ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${off}</strong></span><span class="ytd-item home-ytd">Home <strong>${hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${oc}</strong></span>`;
+    ytdRow.innerHTML = ytdRowHtml(ytdData);
 
     const chartsCard = btn.closest('.charts-card');
     chartsCard.querySelectorAll('.bw-weekday').forEach(el => el.style.display = period === 'week'  ? 'flex' : 'none');
@@ -357,7 +356,8 @@
     year:  DATA.charts.year.ytd
   };
   const ytdTitles = { week:'Last 4 weeks split', month:'Last 6 months split', year:'Last 12 months split' };
-  const ytdLabels = ['Office','Home','Vacation','Holiday','OnCall day off'];
+  const ytdTypes  = DATA.charts.types; // [{ type, label }] — driven by cheatSheet
+  const ytdLabels = ytdTypes.map(t => t.label);
 
   function makeStripePattern(c1, c2) {
     const sz = 8;
@@ -375,23 +375,33 @@
     return tmp.getContext('2d').createPattern(patCanvas, 'repeat');
   }
 
-  const ytdColorsLight = [
-    cv('--ytd-office'), cv('--ytd-home'), cv('--ytd-vacation'), cv('--ytd-holiday'), cv('--ytd-oncall')
-  ];
-  const ytdColorsDark  = [
-    cv('--ytd-dark-office'),
-    cv('--ytd-dark-home'),
-    makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')),
-    makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')),
-    makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2'))
-  ];
+  // Color definitions keyed by CSS type string — extend here when adding new types
+  const _ytdColorDefs = {
+    office:    { light: cv('--ytd-office'),   dark: cv('--ytd-dark-office') },
+    home:      { light: cv('--ytd-home'),     dark: cv('--ytd-dark-home')   },
+    vacation:  { light: cv('--ytd-vacation'), dark: makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')) },
+    holiday:   { light: cv('--ytd-holiday'),  dark: makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')) },
+    oncalloff: { light: cv('--ytd-oncall'),   dark: makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2')) },
+  };
+  const _ytdFallback = 'rgba(180,180,180,0.7)';
+  const ytdColorsLight = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).light || _ytdFallback);
+  const ytdColorsDark  = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).dark  || _ytdFallback);
+
+  function ytdToArray(ytd) {
+    return ytdTypes.map(t => ytd[t.type] || 0);
+  }
+  function ytdRowHtml(ytd) {
+    return ytdTypes.map(t =>
+      `<span class="ytd-item ${t.type}-ytd">${t.label} <strong>${ytd[t.type] || 0}</strong></span>`
+    ).join('');
+  }
 
   function makeYtdChart(id) {
     return new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: {
         labels: ytdLabels,
-        datasets: [{ data: ytdByPeriod.week, backgroundColor: ytdColorsLight, borderWidth: 0 }]
+        datasets: [{ data: ytdToArray(ytdByPeriod.week), backgroundColor: ytdColorsLight, borderWidth: 0 }]
       },
       options: {
         cutout: '50%',
@@ -415,10 +425,7 @@
 
   // Initialize YTD row from DATA
   const _ytdRow = document.querySelector('#cy-o .ytd-row');
-  if (_ytdRow) {
-    const [_off, _hm, _vac, _hol, _oc] = ytdByPeriod.week;
-    _ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${_off}</strong></span><span class="ytd-item home-ytd">Home <strong>${_hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${_vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${_hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${_oc}</strong></span>`;
-  }
+  if (_ytdRow) _ytdRow.innerHTML = ytdRowHtml(ytdByPeriod.week);
 
   // ---- Weekday Heatmap ----
   const hmDataYear     = DATA.charts.heatmap;

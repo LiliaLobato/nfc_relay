@@ -81,19 +81,14 @@
     body.dark .hm-cell.holiday   { background: repeating-linear-gradient(45deg, #3e3c50 0px, #3e3c50 4px, #524f6a 4px, #524f6a 8px); }
     body.dark .cal-day.oncalloff { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px); color: #f0b8e0; }
     body.dark .legend-dot.d-oncall    { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px) !important; }
-    body.dark .ytd-item.oncall-ytd   { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px) !important; }
+    body.dark .ytd-item.oncalloff-ytd { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px) !important; }
     body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #583858 0px, #583858 4px, #704868 4px, #704868 8px); }
     body.dark .card { border: 1px solid #3a3750; }
     body.dark .error-card .error-msg { color: #7a78a8; }
     body.dark .rings-row .ring-item:nth-child(1) .ring-center { filter: none; color: #8D90E7 !important; }
     body.dark .rings-row .ring-item:nth-child(2) .ring-center { filter: none; color: #DC77BB !important; }
     body.dark .rings-row .ring-item:nth-child(3) .ring-center { filter: none; color: #CABFC7 !important; }
-    body.dark .recommendation { background: #3a1a1a; color: #f87171; }
     body.dark .error-title.danger { color: #f87171; }
-    .recommendation           { background: #fee2e2; color: #dc2626; }
-    .recommendation.info      { background: #d1fae5; color: #065f46; }
-    body.dark .recommendation      { background: #3a1a1a; color: #f87171; }
-    body.dark .recommendation.info { background: #0a2e1a; color: #6ee7b7; }
     .error-title.danger  { color: #dc2626; }
     .error-title.neutral { color: var(--muted); }
     body.dark .error-title.danger { color: #f87171; }
@@ -321,7 +316,7 @@
     .ytd-item.home-ytd     { background: var(--home-bg);     color: var(--home-text); }
     .ytd-item.vacation-ytd { background: var(--vacation-bg); color: var(--vacation-text); }
     .ytd-item.holiday-ytd  { background: var(--holiday-bg);  color: var(--holiday-text); }
-    .ytd-item.oncall-ytd   { background: var(--oncall-bg);   color: var(--oncall-text); }
+    .ytd-item.oncalloff-ytd { background: var(--oncall-bg);   color: var(--oncall-text); }
     .legend-item strong { color: var(--accent); }
 
     /* ---- Weekday heatmap ---- */
@@ -338,6 +333,12 @@
     .hm-cell.vacation  { background: var(--vacation-bg); }
     .hm-cell.holiday   { background: var(--holiday-bg); }
     .hm-cell.oncalloff { background: var(--oncall-bg); }
+
+    /* ---- Recommendation banner (fixed semantic colors, not theme-dependent) ---- */
+    .recommendation           { background: #fee2e2; color: #dc2626; }
+    .recommendation.info      { background: #d1fae5; color: #065f46; }
+    body.dark .recommendation      { background: #3a1a1a; color: #f87171; }
+    body.dark .recommendation.info { background: #0a2e1a; color: #6ee7b7; }
   </style>
 
 </head>
@@ -549,9 +550,9 @@
   "date": "Thursday, 16/Apr/2026",
   "time": "6:45 PM",
   "rings": {
-    "weekAvg": 2.4,
-    "monthAvg": 2.8,
-    "yearAvg": 2.1,
+    "best10of12": 2.4,
+    "best8of12": 2.8,
+    "best8of10": 2.1,
     "rawAverage": 2.1,
     "goalActual": 32,
     "goalTarget": 50,
@@ -574,128 +575,923 @@
     "daysInMonth": 30,
     "today": 16,
     "types": {
-      "1": "home",  "2": "office", "3": "office",
-      "4": "weekend-day", "5": "weekend-day",
-      "6": "home",  "7": "office", "8": "home", "9": "office", "10": "office",
-      "11": "weekend-day", "12": "weekend-day",
-      "13": "home", "14": "office", "15": "home", "16": "office", "17": "future",
-      "18": "weekend-day", "19": "weekend-day",
-      "20": "office", "21": "home", "22": "vacation", "23": "holiday", "24": "oncalloff",
-      "25": "weekend-day", "26": "weekend-day",
-      "27": "future", "28": "future", "29": "future", "30": "future"
+      "1": "home",
+      "2": "office",
+      "3": "office",
+      "4": "weekend-day",
+      "5": "weekend-day",
+      "6": "home",
+      "7": "office",
+      "8": "home",
+      "9": "office",
+      "10": "office",
+      "11": "weekend-day",
+      "12": "weekend-day",
+      "13": "home",
+      "14": "office",
+      "15": "home",
+      "16": "office",
+      "17": "future",
+      "18": "weekend-day",
+      "19": "weekend-day",
+      "20": "office",
+      "21": "home",
+      "22": "vacation",
+      "23": "holiday",
+      "24": "oncalloff",
+      "25": "weekend-day",
+      "26": "weekend-day",
+      "27": "future",
+      "28": "future",
+      "29": "future",
+      "30": "future"
     },
     "prevDays": [
-      { "day": 30, "type": "office" },
-      { "day": 31, "type": "home"   }
+      {
+        "day": 30,
+        "type": "office"
+      },
+      {
+        "day": 31,
+        "type": "home"
+      }
     ],
     "nextDays": [
-      { "day": 1, "type": "future"      },
-      { "day": 2, "type": "weekend-day" },
-      { "day": 3, "type": "weekend-day" }
+      {
+        "day": 1,
+        "type": "future"
+      },
+      {
+        "day": 2,
+        "type": "weekend-day"
+      },
+      {
+        "day": 3,
+        "type": "weekend-day"
+      }
     ]
   },
   "charts": {
     "goal": 3,
     "week": {
-      "labels":    ["15/Dec/25","16/Dec/25","17/Dec/25","18/Dec/25","19/Dec/25","22/Dec/25","23/Dec/25","24/Dec/25","25/Dec/25","26/Dec/25","5/Jan","6/Jan","7/Jan","8/Jan","9/Jan","12/Jan","13/Jan","14/Jan","15/Jan","16/Jan"],
-      "barData":   [0, 1, 1, 1, 0],
-      "line1":     [2.4,2.4,2.3,2.3,2.3, 2.3,2.2,2.2,2.2,2.2, 2.1,2.1,2.0,2.0,2.1, 2.1,2.1,2.0,2.0,2.1],
-      "line2":     [3.0,3.0,2.9,2.9,2.9, 2.9,2.8,2.8,2.8,2.8, 2.6,2.6,2.5,2.5,2.6, 2.6,2.6,2.5,2.5,2.6],
-      "line3":     [2.8,2.8,2.7,2.7,2.7, 2.7,2.6,2.6,2.6,2.6, 2.3,2.3,2.2,2.2,2.3, 2.3,2.3,2.2,2.2,2.3],
-      "paceActual":[0,0,1,2,3, 3,3,3,3,3, 4,5,6,7,7, 8,9,10,11,11],
-      "paceGoal":  [0.6,1.2,1.8,2.4,3.0, 3.6,4.2,4.8,5.4,6.0, 6.6,7.2,7.8,8.4,9.0, 9.6,10.2,10.8,11.4,12.0],
-      "ytd": [11, 7, 0, 2, 0],
+      "labels": [
+        "15/Dec/25",
+        "16/Dec/25",
+        "17/Dec/25",
+        "18/Dec/25",
+        "19/Dec/25",
+        "22/Dec/25",
+        "23/Dec/25",
+        "24/Dec/25",
+        "25/Dec/25",
+        "26/Dec/25",
+        "5/Jan",
+        "6/Jan",
+        "7/Jan",
+        "8/Jan",
+        "9/Jan",
+        "12/Jan",
+        "13/Jan",
+        "14/Jan",
+        "15/Jan",
+        "16/Jan"
+      ],
+      "barData": [
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "line1": [
+        2.4,
+        2.4,
+        2.3,
+        2.3,
+        2.3,
+        2.3,
+        2.2,
+        2.2,
+        2.2,
+        2.2,
+        2.1,
+        2.1,
+        2.0,
+        2.0,
+        2.1,
+        2.1,
+        2.1,
+        2.0,
+        2.0,
+        2.1
+      ],
+      "line2": [
+        3.0,
+        3.0,
+        2.9,
+        2.9,
+        2.9,
+        2.9,
+        2.8,
+        2.8,
+        2.8,
+        2.8,
+        2.6,
+        2.6,
+        2.5,
+        2.5,
+        2.6,
+        2.6,
+        2.6,
+        2.5,
+        2.5,
+        2.6
+      ],
+      "line3": [
+        2.8,
+        2.8,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.6,
+        2.6,
+        2.6,
+        2.6,
+        2.3,
+        2.3,
+        2.2,
+        2.2,
+        2.3,
+        2.3,
+        2.3,
+        2.2,
+        2.2,
+        2.3
+      ],
+      "paceActual": [
+        0,
+        0,
+        1,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        4,
+        5,
+        6,
+        7,
+        7,
+        8,
+        9,
+        10,
+        11,
+        11
+      ],
+      "paceGoal": [
+        0.6,
+        1.2,
+        1.8,
+        2.4,
+        3.0,
+        3.6,
+        4.2,
+        4.8,
+        5.4,
+        6.0,
+        6.6,
+        7.2,
+        7.8,
+        8.4,
+        9.0,
+        9.6,
+        10.2,
+        10.8,
+        11.4,
+        12.0
+      ],
+      "ytd": {
+        "office": 11,
+        "home": 7,
+        "vacation": 0,
+        "holiday": 2,
+        "oncalloff": 0
+      },
       "bestWorst": {
-        "best":  { "label": "Wednesday",       "value": 31 },
-        "worst": { "label": "Tuesday",         "value": 14 }
+        "best": {
+          "label": "Wednesday",
+          "value": 31
+        },
+        "worst": {
+          "label": "Tuesday",
+          "value": 14
+        }
       }
     },
     "month": {
-      "labels":    ["WW43/25","WW44/25","WW45/25","WW46/25","WW47/25","WW48/25","WW49/25","WW50/25","WW51/25","WW52/25","WW1","WW2","WW3","WW4","WW5","WW6","WW7","WW8","WW9","WW10","WW11","WW12","WW13","WW14","WW15","WW16"],
-      "barLabels": ["WW12","WW13","WW14","WW15","WW16"],
-      "barData":   [3, 2, 2, 2, 3],
-      "line1":     [2.3,2.2,2.3,2.4,2.3,2.3,2.4,2.2,2.3,2.4, 2.0,2.1,2.1,2.2,2.1,2.2,2.2,2.3,2.2,2.2,2.3,2.4,2.2,2.2,2.3,2.4],
-      "line2":     [2.8,2.7,2.8,2.9,2.8,2.8,2.9,2.7,2.8,2.9, 2.5,2.6,2.6,2.7,2.6,2.7,2.7,2.8,2.7,2.7,2.8,2.9,2.7,2.8,2.9,3.0],
-      "line3":     [2.5,2.4,2.5,2.6,2.5,2.5,2.6,2.4,2.5,2.6, 2.2,2.3,2.3,2.4,2.3,2.4,2.4,2.5,2.4,2.4,2.5,2.6,2.5,2.5,2.6,2.8],
-      "paceActual":[2,4,6,8,10,12,14,14,16,18, 18,20,23,25,28,32,35,38,41,45,48,51,53,55,58,61],
-      "paceGoal":  [3,6,9,12,15,18,21,24,27,30, 33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78],
-      "ytd": [61, 58, 5, 4, 2],
+      "labels": [
+        "WW43/25",
+        "WW44/25",
+        "WW45/25",
+        "WW46/25",
+        "WW47/25",
+        "WW48/25",
+        "WW49/25",
+        "WW50/25",
+        "WW51/25",
+        "WW52/25",
+        "WW1",
+        "WW2",
+        "WW3",
+        "WW4",
+        "WW5",
+        "WW6",
+        "WW7",
+        "WW8",
+        "WW9",
+        "WW10",
+        "WW11",
+        "WW12",
+        "WW13",
+        "WW14",
+        "WW15",
+        "WW16"
+      ],
+      "barLabels": [
+        "WW12",
+        "WW13",
+        "WW14",
+        "WW15",
+        "WW16"
+      ],
+      "barData": [
+        3,
+        2,
+        2,
+        2,
+        3
+      ],
+      "line1": [
+        2.3,
+        2.2,
+        2.3,
+        2.4,
+        2.3,
+        2.3,
+        2.4,
+        2.2,
+        2.3,
+        2.4,
+        2.0,
+        2.1,
+        2.1,
+        2.2,
+        2.1,
+        2.2,
+        2.2,
+        2.3,
+        2.2,
+        2.2,
+        2.3,
+        2.4,
+        2.2,
+        2.2,
+        2.3,
+        2.4
+      ],
+      "line2": [
+        2.8,
+        2.7,
+        2.8,
+        2.9,
+        2.8,
+        2.8,
+        2.9,
+        2.7,
+        2.8,
+        2.9,
+        2.5,
+        2.6,
+        2.6,
+        2.7,
+        2.6,
+        2.7,
+        2.7,
+        2.8,
+        2.7,
+        2.7,
+        2.8,
+        2.9,
+        2.7,
+        2.8,
+        2.9,
+        3.0
+      ],
+      "line3": [
+        2.5,
+        2.4,
+        2.5,
+        2.6,
+        2.5,
+        2.5,
+        2.6,
+        2.4,
+        2.5,
+        2.6,
+        2.2,
+        2.3,
+        2.3,
+        2.4,
+        2.3,
+        2.4,
+        2.4,
+        2.5,
+        2.4,
+        2.4,
+        2.5,
+        2.6,
+        2.5,
+        2.5,
+        2.6,
+        2.8
+      ],
+      "paceActual": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        14,
+        16,
+        18,
+        18,
+        20,
+        23,
+        25,
+        28,
+        32,
+        35,
+        38,
+        41,
+        45,
+        48,
+        51,
+        53,
+        55,
+        58,
+        61
+      ],
+      "paceGoal": [
+        3,
+        6,
+        9,
+        12,
+        15,
+        18,
+        21,
+        24,
+        27,
+        30,
+        33,
+        36,
+        39,
+        42,
+        45,
+        48,
+        51,
+        54,
+        57,
+        60,
+        63,
+        66,
+        69,
+        72,
+        75,
+        78
+      ],
+      "ytd": {
+        "office": 61,
+        "home": 58,
+        "vacation": 5,
+        "holiday": 4,
+        "oncalloff": 2
+      },
       "bestWorst": {
-        "best":  { "label": "WW5 (2/Feb)",        "value": 5 },
-        "worst": { "label": "WW51 (15/Dec/25)",   "value": 0 }
+        "best": {
+          "label": "WW5 (2/Feb)",
+          "value": 5
+        },
+        "worst": {
+          "label": "WW51 (15/Dec/25)",
+          "value": 0
+        }
       }
     },
     "year": {
-      "labels":    ["May/25","Jun/25","Jul/25","Aug/25","Sep/25","Oct/25","Nov/25","Dec/25","Jan","Feb","Mar","Apr"],
-      "barLabels": ["Dec/25","Jan","Feb","Mar","Apr"],
-      "barData":   [5, 8, 10, 11, 9],
-      "line1":     [1.2,1.3,1.4,1.5,1.5,1.6,1.6,1.7,1.8,2.0,2.2,2.4],
-      "line2":     [1.6,1.7,1.8,2.0,2.0,2.1,2.1,2.2,2.3,2.5,2.7,3.0],
-      "line3":     [1.4,1.5,1.6,1.8,1.8,1.9,1.9,2.0,2.1,2.3,2.5,2.8],
-      "paceActual":[8, 18, 24, 34, 44, 54, 62, 67, 75, 85, 96, 105],
-      "paceGoal":  [12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144],
-      "ytd": [105, 128, 10, 10, 7],
+      "labels": [
+        "May/25",
+        "Jun/25",
+        "Jul/25",
+        "Aug/25",
+        "Sep/25",
+        "Oct/25",
+        "Nov/25",
+        "Dec/25",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr"
+      ],
+      "barLabels": [
+        "Dec/25",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr"
+      ],
+      "barData": [
+        5,
+        8,
+        10,
+        11,
+        9
+      ],
+      "line1": [
+        1.2,
+        1.3,
+        1.4,
+        1.5,
+        1.5,
+        1.6,
+        1.6,
+        1.7,
+        1.8,
+        2.0,
+        2.2,
+        2.4
+      ],
+      "line2": [
+        1.6,
+        1.7,
+        1.8,
+        2.0,
+        2.0,
+        2.1,
+        2.1,
+        2.2,
+        2.3,
+        2.5,
+        2.7,
+        3.0
+      ],
+      "line3": [
+        1.4,
+        1.5,
+        1.6,
+        1.8,
+        1.8,
+        1.9,
+        1.9,
+        2.0,
+        2.1,
+        2.3,
+        2.5,
+        2.8
+      ],
+      "paceActual": [
+        8,
+        18,
+        24,
+        34,
+        44,
+        54,
+        62,
+        67,
+        75,
+        85,
+        96,
+        105
+      ],
+      "paceGoal": [
+        12,
+        24,
+        36,
+        48,
+        60,
+        72,
+        84,
+        96,
+        108,
+        120,
+        132,
+        144
+      ],
+      "ytd": {
+        "office": 105,
+        "home": 128,
+        "vacation": 10,
+        "holiday": 10,
+        "oncalloff": 7
+      },
       "bestWorst": {
-        "best":  { "label": "Mar",    "value": 11 },
-        "worst": { "label": "Dec/25", "value": 5  }
+        "best": {
+          "label": "Mar",
+          "value": 11
+        },
+        "worst": {
+          "label": "Dec/25",
+          "value": 5
+        }
       }
     },
     "heatmap": {
-      "WW18/25": ["home","office","home","office","home"],
-      "WW19/25": ["office","home","home","office","home"],
-      "WW20/25": ["home","office","home","home","office"],
-      "WW21/25": ["office","home","office","home","home"],
-      "WW22/25": ["home","home","office","home","office"],
-      "WW23/25": ["office","home","home","office","home"],
-      "WW24/25": ["home","office","office","home","home"],
-      "WW25/25": ["office","home","home","office","home"],
-      "WW26/25": ["home","home","office","home","office"],
-      "WW27/25": ["vacation","vacation","vacation","vacation","vacation"],
-      "WW28/25": ["vacation","vacation","vacation","vacation","vacation"],
-      "WW29/25": ["home","office","home","home","office"],
-      "WW30/25": ["home","home","office","home","home"],
-      "WW31/25": ["office","home","home","home","home"],
-      "WW32/25": ["home","office","home","office","home"],
-      "WW33/25": ["office","home","office","home","home"],
-      "WW34/25": ["home","home","home","office","office"],
-      "WW35/25": ["office","home","home","office","home"],
-      "WW36/25": ["home","office","home","office","home"],
-      "WW37/25": ["office","home","home","office","home"],
-      "WW38/25": ["home","office","home","home","office"],
-      "WW39/25": ["office","home","office","home","home"],
-      "WW40/25": ["home","home","office","home","office"],
-      "WW41/25": ["office","home","home","office","home"],
-      "WW42/25": ["home","office","home","office","home"],
-      "WW43/25": ["home","office","home","office","home"],
-      "WW44/25": ["office","home","home","home","office"],
-      "WW45/25": ["home","office","home","office","home"],
-      "WW46/25": ["home","home","office","home","office"],
-      "WW47/25": ["office","home","home","office","home"],
-      "WW48/25": ["home","office","home","home","office"],
-      "WW49/25": ["office","home","office","home","home"],
-      "WW50/25": ["home","home","home","home","home"],
-      "WW51/25": ["home","home","office","office","home"],
-      "WW52/25": ["home","home","home","holiday","holiday"],
-      "WW1":     ["office","office","office","office","home"],
-      "WW2":     ["office","office","office","home","home"],
-      "WW3":     ["home","office","home","office","office"],
-      "WW4":     ["vacation","vacation","vacation","vacation","vacation"],
-      "WW5":     ["office","home","office","office","home"],
-      "WW6":     ["home","office","office","home","office"],
-      "WW7":     ["office","office","home","home","office"],
-      "WW8":     ["oncalloff","oncalloff","oncalloff","oncalloff","oncalloff"],
-      "WW9":     ["home","office","home","office","office"],
-      "WW10":    ["office","office","office","home","office"],
-      "WW11":    ["holiday","holiday","holiday","home","home"],
-      "WW12":    ["office","office","office","home","office"],
-      "WW13":    ["home","home","office","home","home"],
-      "WW14":    ["office","office","home","office","home"],
-      "WW15":    ["office","home","office","office","home"],
-      "WW16":    ["office","home","office","",""]
-    }
+      "WW18/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW19/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW20/25": [
+        "home",
+        "office",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW21/25": [
+        "office",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW22/25": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW23/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW24/25": [
+        "home",
+        "office",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW25/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW26/25": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW27/25": [
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation"
+      ],
+      "WW28/25": [
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation"
+      ],
+      "WW29/25": [
+        "home",
+        "office",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW30/25": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW31/25": [
+        "office",
+        "home",
+        "home",
+        "home",
+        "home"
+      ],
+      "WW32/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW33/25": [
+        "office",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW34/25": [
+        "home",
+        "home",
+        "home",
+        "office",
+        "office"
+      ],
+      "WW35/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW36/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW37/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW38/25": [
+        "home",
+        "office",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW39/25": [
+        "office",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW40/25": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW41/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW42/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW43/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW44/25": [
+        "office",
+        "home",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW45/25": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW46/25": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW47/25": [
+        "office",
+        "home",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW48/25": [
+        "home",
+        "office",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW49/25": [
+        "office",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW50/25": [
+        "home",
+        "home",
+        "home",
+        "home",
+        "home"
+      ],
+      "WW51/25": [
+        "home",
+        "home",
+        "office",
+        "office",
+        "home"
+      ],
+      "WW52/25": [
+        "home",
+        "home",
+        "home",
+        "holiday",
+        "holiday"
+      ],
+      "WW1": [
+        "office",
+        "office",
+        "office",
+        "office",
+        "home"
+      ],
+      "WW2": [
+        "office",
+        "office",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW3": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "office"
+      ],
+      "WW4": [
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation",
+        "vacation"
+      ],
+      "WW5": [
+        "office",
+        "home",
+        "office",
+        "office",
+        "home"
+      ],
+      "WW6": [
+        "home",
+        "office",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW7": [
+        "office",
+        "office",
+        "home",
+        "home",
+        "office"
+      ],
+      "WW8": [
+        "oncalloff",
+        "oncalloff",
+        "oncalloff",
+        "oncalloff",
+        "oncalloff"
+      ],
+      "WW9": [
+        "home",
+        "office",
+        "home",
+        "office",
+        "office"
+      ],
+      "WW10": [
+        "office",
+        "office",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW11": [
+        "holiday",
+        "holiday",
+        "holiday",
+        "home",
+        "home"
+      ],
+      "WW12": [
+        "office",
+        "office",
+        "office",
+        "home",
+        "office"
+      ],
+      "WW13": [
+        "home",
+        "home",
+        "office",
+        "home",
+        "home"
+      ],
+      "WW14": [
+        "office",
+        "office",
+        "home",
+        "office",
+        "home"
+      ],
+      "WW15": [
+        "office",
+        "home",
+        "office",
+        "office",
+        "home"
+      ],
+      "WW16": [
+        "office",
+        "home",
+        "office",
+        "",
+        ""
+      ]
+    },
+    "types": [
+      {
+        "type": "office",
+        "label": "Office"
+      },
+      {
+        "type": "vacation",
+        "label": "Vacation"
+      },
+      {
+        "type": "holiday",
+        "label": "Holiday"
+      },
+      {
+        "type": "oncalloff",
+        "label": "OnCall day off"
+      },
+      {
+        "type": "home",
+        "label": "Home"
+      }
+    ]
   }
-}
-;
+};
 
   // ---- Dark mode toggle ----
   function toggleDark(btn) {
@@ -789,9 +1585,9 @@
   const goalPct   = DATA.rings.goalActual / DATA.rings.goalTarget;
   const goalLabel = Math.round(goalPct * 100) + '%';
 
-  makeRing('r-o-1', DATA.rings.weekAvg,  0);
-  makeRing('r-o-2', DATA.rings.monthAvg, 1);
-  makeRing('r-o-3', DATA.rings.yearAvg,  2);
+  makeRing('r-o-1', DATA.rings.best10of12, 0);
+  makeRing('r-o-2', DATA.rings.best8of12,  1);
+  makeRing('r-o-3', DATA.rings.best8of10,  2);
   makeRingPct('r-o-4', goalPct, 3);
   document.querySelector('#r-o-4').closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
 
@@ -969,13 +1765,12 @@
 
     const ytdData = ytdByPeriod[period];
     const ytdChart = charts[`ytd-${view}`];
-    ytdChart.data.datasets[0].data = ytdData;
+    ytdChart.data.datasets[0].data = ytdToArray(ytdData);
     ytdChart.update();
     const ytdTitleEl = document.querySelector(`#cy-${view}`).closest('.chart-item').querySelector('.chart-item-title');
     ytdTitleEl.textContent = ytdTitles[period];
     const ytdRow = document.querySelector(`#cy-${view} .ytd-row`);
-    const [off, hm, vac, hol, oc] = ytdData;
-    ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${off}</strong></span><span class="ytd-item home-ytd">Home <strong>${hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${oc}</strong></span>`;
+    ytdRow.innerHTML = ytdRowHtml(ytdData);
 
     const chartsCard = btn.closest('.charts-card');
     chartsCard.querySelectorAll('.bw-weekday').forEach(el => el.style.display = period === 'week'  ? 'flex' : 'none');
@@ -1053,7 +1848,8 @@
     year:  DATA.charts.year.ytd
   };
   const ytdTitles = { week:'Last 4 weeks split', month:'Last 6 months split', year:'Last 12 months split' };
-  const ytdLabels = ['Office','Home','Vacation','Holiday','OnCall day off'];
+  const ytdTypes  = DATA.charts.types; // [{ type, label }] — driven by cheatSheet
+  const ytdLabels = ytdTypes.map(t => t.label);
 
   function makeStripePattern(c1, c2) {
     const sz = 8;
@@ -1071,23 +1867,33 @@
     return tmp.getContext('2d').createPattern(patCanvas, 'repeat');
   }
 
-  const ytdColorsLight = [
-    cv('--ytd-office'), cv('--ytd-home'), cv('--ytd-vacation'), cv('--ytd-holiday'), cv('--ytd-oncall')
-  ];
-  const ytdColorsDark  = [
-    cv('--ytd-dark-office'),
-    cv('--ytd-dark-home'),
-    makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')),
-    makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')),
-    makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2'))
-  ];
+  // Color definitions keyed by CSS type string — extend here when adding new types
+  const _ytdColorDefs = {
+    office:    { light: cv('--ytd-office'),   dark: cv('--ytd-dark-office') },
+    home:      { light: cv('--ytd-home'),     dark: cv('--ytd-dark-home')   },
+    vacation:  { light: cv('--ytd-vacation'), dark: makeStripePattern(cv('--ytd-dark-vacation-1'), cv('--ytd-dark-vacation-2')) },
+    holiday:   { light: cv('--ytd-holiday'),  dark: makeStripePattern(cv('--ytd-dark-holiday-1'),  cv('--ytd-dark-holiday-2')) },
+    oncalloff: { light: cv('--ytd-oncall'),   dark: makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2')) },
+  };
+  const _ytdFallback = 'rgba(180,180,180,0.7)';
+  const ytdColorsLight = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).light || _ytdFallback);
+  const ytdColorsDark  = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).dark  || _ytdFallback);
+
+  function ytdToArray(ytd) {
+    return ytdTypes.map(t => ytd[t.type] || 0);
+  }
+  function ytdRowHtml(ytd) {
+    return ytdTypes.map(t =>
+      `<span class="ytd-item ${t.type}-ytd">${t.label} <strong>${ytd[t.type] || 0}</strong></span>`
+    ).join('');
+  }
 
   function makeYtdChart(id) {
     return new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: {
         labels: ytdLabels,
-        datasets: [{ data: ytdByPeriod.week, backgroundColor: ytdColorsLight, borderWidth: 0 }]
+        datasets: [{ data: ytdToArray(ytdByPeriod.week), backgroundColor: ytdColorsLight, borderWidth: 0 }]
       },
       options: {
         cutout: '50%',
@@ -1111,10 +1917,7 @@
 
   // Initialize YTD row from DATA
   const _ytdRow = document.querySelector('#cy-o .ytd-row');
-  if (_ytdRow) {
-    const [_off, _hm, _vac, _hol, _oc] = ytdByPeriod.week;
-    _ytdRow.innerHTML = `<span class="ytd-item office-ytd">Office <strong>${_off}</strong></span><span class="ytd-item home-ytd">Home <strong>${_hm}</strong></span><span class="ytd-item vacation-ytd">Vacation <strong>${_vac}</strong></span><span class="ytd-item holiday-ytd">Holiday <strong>${_hol}</strong></span><span class="ytd-item oncall-ytd">OnCall day off <strong>${_oc}</strong></span>`;
-  }
+  if (_ytdRow) _ytdRow.innerHTML = ytdRowHtml(ytdByPeriod.week);
 
   // ---- Weekday Heatmap ----
   const hmDataYear     = DATA.charts.heatmap;
