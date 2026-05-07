@@ -1,87 +1,155 @@
+/**
+ * SheetHelper.js
+ * All Google Sheets read operations.
+ * Each function maps directly to a getRange/getValue call.
+ * Sheet layout constants (DATALOCATION, MONTHLY) live in GlobalConstants.js.
+ */
 
+/**
+ * Gets the current year's sheet and initialises the global cheatSheet.
+ * Sets the global `sheet` variable as a side effect.
+ *
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet}
+ * @throws {Error} if no sheet exists for the current year
+ */
 function GetCurrentSheet(){
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = rawDate.getFullYear(); //'Copy of ' + rawDate.getFullYear();
+    const sheetName = String(rawDate.getFullYear());
     sheet = ss.getSheetByName(sheetName);
 
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found`);
     }
 
-    // General setup
     GetCheatSheet();
 
     return sheet;
 }
 
+/**
+ * Reads the code to label mapping into the global cheatSheet.
+ */
 function GetCheatSheet(){
-  const rawCheatSheet = sheet.getRange("M7:N10").getValues();
+  const rawCheatSheet = sheet.getRange(DATALOCATION.cheatSheetRange).getValues();
 
   cheatSheet = {};
   rawCheatSheet.forEach(row => {
-    const key = row[1];
+    const key   = row[1];
     const value = row[0];
-    cheatSheet[key] = value;
+    if (key && value) cheatSheet[key] = value;
   });
 }
 
-function GetWeekRowRange(startWeek, endWeek) {
+/**
+ * Maps a raw cell value to a CSS type string via cheatSheet.
+ * Lowercases the label and strips spaces.
+ *
+ * NOTE: The JS layer is not fully agnostic. CSS class names must match the label.
+ * Adding a new day type requires updating the sheet and HTML/CSS.
+ * Labels must be alphanumeric only (spaces are stripped, hyphens would break the match).
+ *
+ * @param {*} value raw cell value from getValues()
+ * @returns {string} CSS class name for that cell, or 'home' if no match found
+ */
+function CellTypeFromValue(value) {
+  if (!value && value !== 0) return 'home';
+  const label = cheatSheet[value];
+  if (!label) return 'home';
+  return label.toLowerCase().replace(/\s+/g, '');
+}
+
+/**
+ * Gets raw daily cell values for a range of ISO weeks.
+ * Each row is [Mon, Tue, Wed, Thu, Fri] for that week.
+ *
+ * @param {number} startWeek first ISO week (1-based)
+ * @param {number} endWeek last ISO week (1-based)
+ * @returns {Array[][]} result[i] is WW(startWeek+i) daily values
+ */
+function GetDailyDataRange(startWeek, endWeek) {
   const startRow = startWeek + wwRowOffset;
   const endRow   = endWeek   + wwRowOffset;
-  return sheet.getRange(`D${startRow}:H${endRow}`).getValues();
+  return sheet.getRange(`${DATALOCATION.weekDataStartCol}${startRow}:${DATALOCATION.weekDataEndCol}${endRow}`).getValues();
 }
 
-function CountYTDStats(allWeekData, weekNumber, startColWW1) {
-  const totals = { home: 0 };
-  for (let ww = 1; ww <= weekNumber; ww++) {
-    const row = allWeekData[ww - 1];
-    if (!row) continue;
-    const startCol = (ww === 1) ? startColWW1 : 0;
-    for (let col = startCol; col < row.length; col++) {
-      const label = cheatSheet[row[col]];
-      if (label) totals[label.toLowerCase()] = (totals[label.toLowerCase()] || 0) + 1;
-      else totals.home++;
-    }
-  }
-  return totals;
-}
-
-function GetBestOfStats(workWeek) {
+/**
+ * Gets BELT average values for a single ISO week.
+ * Calculated by sheet formulas.
+ *
+ * @param {number} workWeek ISO week number
+ * @returns {{ best10of12: number, best8of12: number, best8of10: number }}
+ */
+function GetBeltAverages(workWeek) {
   const row = workWeek + wwRowOffset;
   return {
-    best1012: sheet.getRange("K" + row).getValue(),
-    best812:  sheet.getRange("L" + row).getValue(),
-    best810:  sheet.getRange("M" + row).getValue()
+    best10of12: sheet.getRange(DATALOCATION.best10of12Col + row).getValue(),
+    best8of12:  sheet.getRange(DATALOCATION.best8of12Col + row).getValue(),
+    best8of10:  sheet.getRange(DATALOCATION.best8of10Col + row).getValue()
   };
 }
 
-function GetKLMRange(startWeek, endWeek) {
+/**
+ * Gets BELT average values for a range of ISO weeks.
+ *
+ * @param {number} startWeek first ISO week
+ * @param {number} endWeek last ISO week
+ * @returns {Array[][]} result[i] is BELT values for WW(startWeek+i)
+ */
+function GetBeltAveragesRange(startWeek, endWeek) {
   const startRow = startWeek + wwRowOffset;
   const endRow   = endWeek   + wwRowOffset;
-  return sheet.getRange(`K${startRow}:M${endRow}`).getValues();
-  // Each row: [0]=K best10/12  [1]=L best8/12  [2]=M best8/10
+  return sheet.getRange(`${DATALOCATION.best10of12Col}${startRow}:${DATALOCATION.best8of10Col}${endRow}`).getValues();
 }
 
+/**
+ * Gets the weekly office day goal from cell E10.
+ *
+ * @returns {number}
+ */
 function GetWeekGoal() {
-  return sheet.getRange('E10').getValue();
+  return sheet.getRange(DATALOCATION.weekGoalCell).getValue();
 }
 
+/**
+ * Gets raw data arrays from the prior year sheet for chart continuity.
+ * Returns null if no prior year sheet exists.
+ *
+ * @param {number} year current year; reads the (year-1) sheet
+ * @returns {{ weekData: Array[][], beltData: Array[][], monthly: Array[][] }|null}
+ */
 function GetPriorYearData(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const priorSheet = ss.getSheetByName(year - 1);
+  const priorSheet = ss.getSheetByName(String(year - 1));
   if (!priorSheet) return null;
   return {
-    weekData: priorSheet.getRange('D13:H64').getValues(),  // WW1-52, access [ww+51] for ww<=0
-    klmData:  priorSheet.getRange('K13:M64').getValues(),
-    monthly:  priorSheet.getRange('R6:AV20').getValues().slice(3),
+    weekData: priorSheet.getRange(DATALOCATION.weekDataRange).getValues(),
+    beltData: priorSheet.getRange(DATALOCATION.beltDataRange).getValues(),
+    monthly:  priorSheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues().slice(3),
   };
 }
 
+/**
+ * Gets the monthly breakdown data as a 12-element array.
+ * Index 0 is January, index 11 is December.
+ * Use MONTHLY constants to access individual columns within each row.
+ *
+ * @returns {Array[][]} 12 rows of monthly stats
+ */
 function GetMonthlyBreakdown() {
-  // R6:AV20 — title(row6), empty(row7), headers(row8), Jan-Dec(rows9-20)
-  // Returns 12-element array (Jan=index 0), each row is the full column array.
-  // Column indices per row: [3]=WorkDays [5]=OfficeDays [9]=Vacations
-  //   [11]=Holidays [13]=OnCallOff [15]=OfficeDayGoal [17]=MonthAverage
-  const values = sheet.getRange('R6:AV20').getValues();
+  const values = sheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues();
   return values.slice(3);
+}
+
+/**
+ * Gets the number of office days still needed this week and next.
+ *
+ * @param {number} workWeek current ISO week number
+ * @returns {{ thisWeek: number, nextWeek: number }}
+ */
+function GetDaysNeeded(workWeek) {
+  const row = workWeek + wwRowOffset;
+  return {
+    thisWeek: sheet.getRange(DATALOCATION.daysNeededCol + row).getValue(),
+    nextWeek: sheet.getRange(DATALOCATION.daysNeededCol + (row + 1)).getValue(),
+  };
 }

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python stitch.py --all --data Office)",
+      "Bash(python stitch.py --all --data Home)",
+      "Bash(python stitch.py --all --data Weekend)",
+      "Bash(python stitch.py --all --data Logged)",
+      "Bash(python stitch.py --all --data Fatal)",
+      "Bash(python stitch.py --all --data Unauth)",
+      "Bash(python stitch.py --theme Default)",
+      "Bash(python validate.py)",
+      "Bash(python validate.py --verbose)",
+      "Bash(python stitch.py --theme Gummy --data Logged)",
+      "Bash(python stitch.py --theme Matcha --data Logged)",
+      "Bash(python stitch.py --theme SoftPurple --data Logged)"
+    ]
+  }
+}
