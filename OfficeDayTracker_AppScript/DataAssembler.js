@@ -50,7 +50,16 @@ function BuildStatsData(weekNumber, dayOfWeek, year, monthIdx) {
 
   const weeksRemaining = Math.max(1, 52 - weekNumber);
 
-  const rings    = BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal);
+  const ytdAvgVals = [];
+  for (let m = 0; m <= monthIdx; m++) {
+    const v = monthly[m][MONTHLY.avg];
+    if (v) ytdAvgVals.push(v);
+  }
+  const yearToDateAverage = ytdAvgVals.length > 0
+    ? Math.round(ytdAvgVals.reduce((a, b) => a + b, 0) / ytdAvgVals.length * 10) / 10
+    : null;
+
+  const rings    = BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage);
   const days     = BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx);
   const calendar = BuildCalendarData(allWeekData, year, monthIdx, calFirst, calLast);
   const charts   = BuildChartsData(allWeekData, weekNumber, dayOfWeek, weekGoal, beltData, monthly, year, monthIdx, startColWW1, priorYearData);

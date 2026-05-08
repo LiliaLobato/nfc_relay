@@ -1,5 +1,5 @@
 /**
- * ChartsHeatmap.js
+ * HeatmapHelper.js
  * Builds the year-to-date heatmap data.
  */
 

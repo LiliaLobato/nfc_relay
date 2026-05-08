@@ -369,8 +369,8 @@
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">–</div></div>
-          <div class="ring-label">Goal Hit Rate</div>
+          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">2.0</div></div>
+          <div class="ring-label">YTD Avg</div>
         </div>
       </div>
       <div class="absence-stat">Raw yearly average: <strong>2.1</strong></div>
@@ -553,7 +553,8 @@
     "goalActual": 32,
     "goalTarget": 50,
     "projectedDays": 15,
-    "totalDays": 22
+    "totalDays": 22,
+    "yearToDateAverage": 2.0
   },
   "days": {
     "thisWeek": 1,
@@ -1489,6 +1490,17 @@
   }
 };
 
+  // ---- View routing ----
+  document.getElementById(
+    DATA.status === 'unauth' ? 'view-unauth' :
+    DATA.status === 'fatal'  ? 'view-fatal'  : 'view-main'
+  ).classList.add('active');
+
+  const charts = {};
+  let ytdColorsLight = [], ytdColorsDark = [];
+
+  if (DATA.status !== 'fatal' && DATA.status !== 'unauth') {
+
   // ---- Dark mode toggle ----
   function toggleDark(btn) {
     document.body.classList.toggle('dark');
@@ -1578,14 +1590,10 @@
     });
   }
 
-  const goalPct   = DATA.rings.goalActual / DATA.rings.goalTarget;
-  const goalLabel = Math.round(goalPct * 100) + '%';
-
-  makeRing('r-o-1', DATA.rings.best10of12, 0);
-  makeRing('r-o-2', DATA.rings.best8of12,  1);
-  makeRing('r-o-3', DATA.rings.best8of10,  2);
-  makeRingPct('r-o-4', goalPct, 3);
-  document.querySelector('#r-o-4').closest('.ring-wrap').querySelector('.ring-center').textContent = goalLabel;
+  makeRing('r-o-1', DATA.rings.best10of12,        0);
+  makeRing('r-o-2', DATA.rings.best8of12,         1);
+  makeRing('r-o-3', DATA.rings.best8of10,         2);
+  makeRing('r-o-4', DATA.rings.yearToDateAverage, 3);
 
   // ---- Current date references ----
   const _today = new Date();
@@ -1599,9 +1607,6 @@
     month: { barLabels: DATA.charts.month.barLabels, barData: DATA.charts.month.barData, lineLabels: DATA.charts.month.labels, line1: DATA.charts.month.line1, line2: DATA.charts.month.line2, line3: DATA.charts.month.line3 },
     year:  { barLabels: DATA.charts.year.barLabels,  barData: DATA.charts.year.barData,  lineLabels: DATA.charts.year.labels,  line1: DATA.charts.year.line1,  line2: DATA.charts.year.line2,  line3: DATA.charts.year.line3  }
   };
-
-  // Store chart instances
-  const charts = {};
 
   function paceHighlightArrays(n, labels) {
     const hi = n - 1;
@@ -1726,8 +1731,9 @@
     const d = periodData[period];
 
     const bar = charts[`bar-${view}`];
-    const bc = barColorArrays(d.barLabels);
-    bar.data.labels = d.barLabels;
+    const barLabels = period === 'week' ? DOW_LABELS : d.barLabels;
+    const bc = barColorArrays(barLabels);
+    bar.data.labels = barLabels;
     bar.data.datasets[0].data = d.barData;
     bar.data.datasets[0].backgroundColor = bc.bg;
     bar.data.datasets[0].borderColor = bc.border;
@@ -1872,8 +1878,8 @@
     oncalloff: { light: cv('--ytd-oncall'),   dark: makeStripePattern(cv('--ytd-dark-oncall-1'),   cv('--ytd-dark-oncall-2')) },
   };
   const _ytdFallback = 'rgba(180,180,180,0.7)';
-  const ytdColorsLight = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).light || _ytdFallback);
-  const ytdColorsDark  = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).dark  || _ytdFallback);
+  ytdColorsLight = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).light || _ytdFallback);
+  ytdColorsDark  = ytdTypes.map(t => (_ytdColorDefs[t.type] || {}).dark  || _ytdFallback);
 
   function ytdToArray(ytd) {
     return ytdTypes.map(t => ytd[t.type] || 0);
@@ -1957,6 +1963,7 @@
     }
   }
   buildHeatmap('heatmap-o', hmDataByPeriod.week);
+  } // end main-view init guard
 </script>
 
 

@@ -16,17 +16,21 @@
 <!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
 <div id="view-main" class="view">
   <div class="container">
+    <? if (data.status !== 'fatal' && data.status !== 'unauth') { ?>
     <?!= Include('TitleCard') ?>
     <?!= Include('RingsCard') ?>
     <?!= Include('DaysCard') ?>
     <?!= Include('CalendarCard') ?>
     <?!= Include('StatisticsCard') ?>
+    <? } ?>
   </div>
 </div>
 
 <!-- ======== FATAL ERROR ======== -->
 <div id="view-fatal" class="view">
+  <? if (data.status === 'fatal') { ?>
   <?!= Include('FatalErrorCard') ?>
+  <? } ?>
 </div>
 
 <!-- ======== UNAUTHORIZED ======== -->

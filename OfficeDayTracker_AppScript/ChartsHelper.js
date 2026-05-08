@@ -166,9 +166,10 @@ function _countChartTypesInRange(fromWW, toWW, context) {
  * @param {number} workDaysInCurrentMonth total work days in the current calendar month
  * @param {number} goalTarget cumulative office-day goal through today's month
  * @param {number} weekGoal weekly office-day goal from E10
+ * @param {number|null} yearToDateAverage average of monthly avg for elapsed months
  * @returns {Object}
  */
-function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal) {
+function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage) {
   const effectiveDaysElapsed = workDaysElapsedYTD - (ytd.holiday || 0);
   return {
     best10of12:    stats.best10of12,
@@ -180,10 +181,11 @@ function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, 
     goalActual:    ytd.office || 0,
     goalTarget,
     weekGoal,
-    projectedDays: workDaysElapsedYTD > 0
-                     ? Math.round((ytd.office || 0) / workDaysElapsedYTD * workDaysInCurrentMonth)
-                     : 0,
-    totalDays:     workDaysInCurrentMonth,
+    projectedDays:      workDaysElapsedYTD > 0
+                          ? Math.round((ytd.office || 0) / workDaysElapsedYTD * workDaysInCurrentMonth)
+                          : 0,
+    totalDays:          workDaysInCurrentMonth,
+    yearToDateAverage,
   };
 }
 

@@ -27,7 +27,7 @@ function GetMondayOfISOWeek(ww, yr) {
  * caught by BuildPageData to trigger the weekend view.
  *
  * @returns {number} WEEK.Mon (0) to WEEK.Fri (4)
- * @throws {Error} on weekends; message is the weekend status label shown in the UI
+ * @throws {Error} on weekends; message is logged for debugging only
  */
 function GetCurrentDayOfWeek(){
   const isoDay = (rawDate.getDay() + 6) % 7;

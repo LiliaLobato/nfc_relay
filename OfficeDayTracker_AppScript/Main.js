@@ -44,10 +44,9 @@ function BuildPageData(key) {
   } catch (e) {
     console.log('Weekend:', e.message);
     data.status        = 'weekend';
-    data.statusLabel   = e.message;
+    data.statusLabel   = 'Weekend';
     data.alreadyLogged = false;
     Object.assign(data, BuildStatsData(data.weekNumber, WEEK.Fri, year, monthIdx));
-    console.log(JSON.stringify(data));
     return data;
   }
 
@@ -73,6 +72,5 @@ function BuildPageData(key) {
   }
 
   Object.assign(data, BuildStatsData(data.weekNumber, dayOfWeek, year, monthIdx));
-  console.log(JSON.stringify(data));
   return data;
 }

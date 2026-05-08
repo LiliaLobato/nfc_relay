@@ -4,15 +4,24 @@
  * No sheet access here; all data assembly is in Main.js.
  */
 
+// Template variables stored globally so Include() can pass them to subtemplates.
+// Apps Script executions are isolated per request.
+var _tplData, _tplTheme, _tplIsDark;
+
 /**
- * Loads an HTML partial by filename and returns its content.
+ * Loads an HTML partial by filename, evaluates it as a template, and returns its content.
+ * Passes data/theme/isDark globals so scriptlets in component files are resolved.
  * Called from templates via <?!= Include('FileName') ?>.
  *
  * @param {string} filename file name without .html extension
  * @returns {string}
  */
 function Include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  const tmpl    = HtmlService.createTemplateFromFile(filename);
+  tmpl.data     = _tplData;
+  tmpl.theme    = _tplTheme;
+  tmpl.isDark   = _tplIsDark;
+  return tmpl.evaluate().getContent();
 }
 
 /**
@@ -69,12 +78,17 @@ function doGet(e) {
   const theme  = e.parameter.theme  || PickTheme();
   const isDark = e.parameter.dark !== undefined ? e.parameter.dark === '1' : IsNightTime();
 
+  _tplTheme  = theme;
+  _tplIsDark = isDark;
+
   const template  = HtmlService.createTemplateFromFile('Index');
   template.theme  = theme;
   template.isDark = isDark;
 
   if (!tokens[key] || tokens[key] !== token) {
-    template.data = { status: 'unauth' };
+    _tplData = { status: 'unauth' };
+    template.data = _tplData;
+    console.log('doGet: unauth — key:', key);
     return template.evaluate()
       .setTitle('Office Day Tracker')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -86,6 +100,8 @@ function doGet(e) {
     console.log('Unhandled error:', e.message);
     template.data = { status: 'fatal', errorMessage: e.message };
   }
+  _tplData = template.data;
+  console.log('doGet: status =', _tplData.status, JSON.stringify(_tplData));
 
   return template.evaluate()
     .setTitle('Office Day Tracker')
