@@ -66,9 +66,12 @@
       --muted:       #6b8a6b;
       --separator:   #243824;
       --text:        #e8f5e0;
-      --accent:      #6868d4;
+      --accent:      #8aba50;
       --shadow:      0 2px 16px rgba(0,0,0,0.4);
-      --ring3: #52c4a8;
+      --ring1: #5dba59; --ring1-bg: rgba(93,186,89,0.25);
+      --ring2: #3ab8d8; --ring2-bg: rgba(58,184,216,0.25);
+      --ring3: #7b7be8; --ring3-bg: rgba(123,123,232,0.25);
+      --ring4: #c87ab0; --ring4-bg: rgba(200,122,176,0.25);
 
     }
     body.dark .cal-day.vacation  { background: repeating-linear-gradient(45deg, #1e4a1e 0px, #1e4a1e 4px, #2e6a2e 4px, #2e6a2e 8px); color: #89D385; }
@@ -85,7 +88,6 @@
     body.dark .hm-cell.oncalloff { background: repeating-linear-gradient(45deg, #1a3010 0px, #1a3010 4px, #2a4a18 4px, #2a4a18 8px); }
     body.dark .card { border: 1px solid #243824; }
     body.dark .error-card .error-msg { color: #6b8a6b; }
-    body.dark .ring-center { filter: brightness(2.2); }
     body.dark .error-title.danger { color: #f87171; }
     .error-title.danger  { color: #dc2626; }
     .error-title.neutral { color: var(--muted); }
@@ -109,13 +111,21 @@
       padding: 24px 16px 48px;
     }
 
-    /* ---- Dark mode toggle ---- */
+    /* ---- Dark mode toggle + refresh ---- */
     .theme-toggle {
       position: fixed; top: 16px; right: 16px; z-index: 100;
       background: var(--card); border: none; border-radius: 999px;
       padding: 8px 14px; font-size: 18px; cursor: pointer;
       box-shadow: var(--shadow); transition: all 0.2s;
     }
+    .refresh-btn {
+      position: fixed; top: 16px; right: 70px; z-index: 100;
+      background: var(--card); color: var(--accent); border: none; border-radius: 999px;
+      padding: 8px 14px; font-size: 18px; cursor: pointer;
+      box-shadow: var(--shadow); transition: all 0.2s;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .refresh-btn.loading { animation: spin 0.8s linear infinite; pointer-events: none; }
 
     /* ---- View tabs ---- */
     .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 28px; }
@@ -185,7 +195,7 @@
     .status-badge.weekend  { background: var(--weekend-bg); color: var(--weekend-text); }
     .status-badge.holiday  { background: var(--holiday-bg); color: var(--holiday-text); }
     .status-badge.vacation { background: var(--vacation-bg);color: var(--vacation-text); }
-    .status-badge.oncall   { background: var(--oncall-bg);  color: var(--oncall-text); }
+    .status-badge.oncalloff { background: var(--oncall-bg);  color: var(--oncall-text); }
     /* ---- Already-logged banner (shown above the status badge when alreadyLogged=true) ---- */
     .already-logged-banner { display: none; }
     .already-logged-banner.true {
@@ -193,9 +203,12 @@
       padding: 8px 16px; border-radius: 10px;
       font-size: 13px; font-weight: 600; margin-bottom: 12px;
     }
-    .already-logged-banner.true.office   { background: var(--office-bg);   color: var(--office-text); }
-    .already-logged-banner.true.home     { background: var(--home-bg);     color: var(--home-text); }
-    .already-logged-banner.true.weekend  { background: var(--weekend-bg);  color: var(--weekend-text); }
+    .already-logged-banner.true.office    { background: var(--office-bg);   color: var(--office-text); }
+    .already-logged-banner.true.home      { background: var(--home-bg);     color: var(--home-text); }
+    .already-logged-banner.true.weekend   { background: var(--weekend-bg);  color: var(--weekend-text); }
+    .already-logged-banner.true.vacation  { background: var(--vacation-bg); color: var(--vacation-text); }
+    .already-logged-banner.true.holiday   { background: var(--holiday-bg);  color: var(--holiday-text); }
+    .already-logged-banner.true.oncalloff { background: var(--oncall-bg);   color: var(--oncall-text); }
     /* ---- Error cards ---- */
     .error-page {
       min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -277,6 +290,8 @@
       cursor: pointer; transition: all 0.15s;
     }
     .period-btn.active { background: var(--accent); color: white; }
+    body.dark .period-btn.active { background: var(--accent); color: white; opacity: 0.80; }
+    body.dark .ring-center { opacity: 0.80; }
 
     /* ---- Charts ---- */
     .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -338,10 +353,13 @@
 <body class="">
 
 <button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode">🌙</button>
+<script>var APP_URL = '<?!= ScriptApp.getService().getUrl() ?>';</script>
+<button class="refresh-btn" onclick="refreshData(this)" title="Refresh data">↻</button>
 
 <!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
 <div id="view-main" class="view active">
   <div class="container">
+    <? if (data.status !== 'fatal' && data.status !== 'unauth') { ?>
         <div class="card header-card">
       <div class="already-logged-banner true office">Already logged</div>
       <div class="status-badge office">Office Day</div>
@@ -354,41 +372,41 @@
       <div class="card-label">Best of averages — WW 16</div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)">2.4</div></div>
+          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" id="rc-o-1" style="color:var(--ring1)">2.4</div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)">2.8</div></div>
+          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" id="rc-o-2" style="color:var(--ring2)">2.8</div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)">2.1</div></div>
+          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" id="rc-o-3" style="color:var(--ring3)">2.1</div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)">2.0</div></div>
+          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" id="rc-o-4" style="color:var(--ring4)">2.0</div></div>
           <div class="ring-label">YTD Avg</div>
         </div>
       </div>
-      <div class="absence-stat">Raw yearly average: <strong>2.1</strong></div>
-      <div class="projection-text" style="margin-top:8px;">At your current best 10/12 average of <strong>2.4 days/week</strong>, you'll finish April with <strong>15/22</strong> office days.</div>
+      <div class="absence-stat">Raw yearly average: <strong id="rca-o">2.1</strong></div>
+      <div class="projection-text" id="proj-o" style="margin-top:8px;">At your current lowest average of <strong>2.1 days/week</strong>, you'll finish April with <strong>15/22</strong> office days.<? if (data.rings.projectedDays < data.rings.monthlyGoal) { ?> Falling short <strong><?= data.rings.monthlyGoal - data.rings.projectedDays ?></strong> days.<? } ?></div>
     </div>
 
         <div class="card days-card">
       <div class="card-label">Days still needed</div>
       <div class="days-pills">
         <div class="day-pill">
-          <div class="day-pill-count">0</div>
+          <div class="day-pill-count" id="pill-1-count-o">0</div>
           <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW 16</div>
+          <div class="day-pill-ww" id="pill-1-ww-o">WW 16</div>
         </div>
         <div class="day-pill">
-          <div class="day-pill-count">2</div>
+          <div class="day-pill-count" id="pill-2-count-o">2</div>
           <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW 17</div>
+          <div class="day-pill-ww" id="pill-2-ww-o">WW 17</div>
         </div>
       </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> over the next 2 months to hit your 3-day/week goal</div>
+      <div class="projection-text" id="days-proj-o" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: 3 vacation · 2 on call day off · 1 holiday</span><br>You need <strong>3.3 days/week</strong> for the rest of the year to hit your 3 day/week goal</div>
     </div>
 
         <div class="card calendar-card">
@@ -406,15 +424,15 @@
         <div class="card charts-card">
       <div class="card-label">Statistics</div>
       <div class="period-tabs">
-        <button class="period-btn active" onclick="setPeriod('o','week',this)">Daily</button>
-        <button class="period-btn" onclick="setPeriod('o','month',this)">Weekly</button>
+        <button class="period-btn" onclick="setPeriod('o','week',this)">Daily</button>
+        <button class="period-btn active" onclick="setPeriod('o','month',this)">Weekly</button>
         <button class="period-btn" onclick="setPeriod('o','year',this)">Monthly</button>
       </div>
       <div class="charts-grid">
                 <!-- Row 1: YTD Split | Bar + Line stacked -->
         <div class="chart-item" style="height:100%">
           <div class="chart-item-header">
-            <span class="chart-item-title">Last 4 weeks split</span>
+            <span class="chart-item-title">Last 6 months split</span>
           </div>
           <div class="chart-body" id="cy-o">
             <canvas id="ytd-o" height="160"></canvas>
@@ -424,13 +442,13 @@
         <div class="charts-col">
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="bar-title-o">Office days by weekday</span>
+              <span class="chart-item-title" id="bar-title-o">Office days by last 5 weeks</span>
             </div>
             <div class="chart-body" id="cb-o"><canvas id="bar-o" height="150"></canvas></div>
           </div>
           <div class="chart-item">
             <div class="chart-item-header">
-              <span class="chart-item-title" id="line-title-o">Last 4 weeks</span>
+              <span class="chart-item-title" id="line-title-o">Last 6 months</span>
             </div>
             <div class="chart-body" id="cl-o"><canvas id="line-o" height="150"></canvas></div>
           </div>
@@ -439,7 +457,7 @@
                 <!-- Row 2: Pace Tracker -->
         <div class="chart-item" style="grid-column:1/-1">
           <div class="chart-item-header">
-            <span class="chart-item-title">Pace tracker</span>
+            <span class="chart-item-title" id="pace-title-o">Pace tracker for the last 4 weeks</span>
           </div>
           <div class="chart-body" id="cp-o"><canvas id="pace-o" height="120"></canvas></div>
         </div>
@@ -507,11 +525,13 @@
       </div>
     </div>
 
+    <? } ?>
   </div>
 </div>
 
 <!-- ======== FATAL ERROR ======== -->
 <div id="view-fatal" class="view">
+  <? if (data.status === 'fatal') { ?>
     <div class="error-page">
     <div class="error-card">
       <div class="error-icon">⚠️</div>
@@ -520,6 +540,7 @@
     </div>
   </div>
 
+  <? } ?>
 </div>
 
 <!-- ======== UNAUTHORIZED ======== -->
@@ -539,6 +560,7 @@
   "status": "office",
   "statusLabel": "Office Day",
   "alreadyLogged": true,
+  "alreadyLoggedMessage": "Already logged",
   "weekNumber": 16,
   "date": "Thursday, 16/Apr/2026",
   "time": "6:45 PM",
@@ -551,12 +573,17 @@
     "goalTarget": 50,
     "projectedDays": 15,
     "totalDays": 22,
+    "lowestAverage": 2.1,
+    "monthlyGoal": 14,
     "yearToDateAverage": 2.0
   },
   "days": {
     "thisWeek": 0,
     "nextWeek": 2,
+    "thisWeekNumber": 16,
+    "thisWeekLabel": "This week",
     "nextWeekNumber": 17,
+    "nextWeekLabel": "Next week",
     "daysPerWeekNeeded": 3.3,
     "monthsRemaining": 2,
     "vacationPlanned": 3,
@@ -1503,6 +1530,11 @@
     document.body.classList.toggle('dark');
     const isDark = document.body.classList.contains('dark');
     btn.textContent = isDark ? '☀️' : '🌙';
+    const newRingFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
+    const newRingBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+    ringCharts.forEach((chart, i) => {
+      if (chart) { chart.data.datasets[0].backgroundColor = [newRingFill[i], newRingBg[i]]; chart.update('none'); }
+    });
     const newColors = isDark ? ytdColorsDark : ytdColorsLight;
     const c = charts['ytd-o'];
     if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
@@ -1546,12 +1578,13 @@
   buildCalendar('cal-o');
 
   // ---- CSS variable reader ----
-  const cv = s => getComputedStyle(document.documentElement).getPropertyValue(s).trim();
+  const cv = s => getComputedStyle(document.body).getPropertyValue(s).trim();
 
   // ---- Rings ----
   const GOAL = DATA.charts.goal;
   const ringFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
   const ringBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+  const ringCharts = [];
   const chartBarFill    = cv('--chart-bar-fill');
   const chartBarStroke  = cv('--chart-bar-stroke');
   const chartDimFill    = cv('--chart-dim-fill');
@@ -1564,7 +1597,7 @@
 
   function makeRing(id, val, i) {
     const pct = Math.min(val / GOAL, 1);
-    new Chart(document.getElementById(id), {
+    ringCharts[i] = new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
       options: {
@@ -1576,7 +1609,7 @@
   }
   function makeRingPct(id, pct, i) {
     pct = Math.min(pct, 1);
-    new Chart(document.getElementById(id), {
+    ringCharts[i] = new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
       options: {
@@ -1599,11 +1632,14 @@
   const DOW_LABELS = ['Mon','Tue','Wed','Thu','Fri'];
 
   // ---- Chart period data ----
-  const periodData = {
-    week:  {                                           barData: DATA.charts.week.barData,  lineLabels: DATA.charts.week.labels,  line1: DATA.charts.week.line1,  line2: DATA.charts.week.line2,  line3: DATA.charts.week.line3  },
-    month: { barLabels: DATA.charts.month.barLabels, barData: DATA.charts.month.barData, lineLabels: DATA.charts.month.labels, line1: DATA.charts.month.line1, line2: DATA.charts.month.line2, line3: DATA.charts.month.line3 },
-    year:  { barLabels: DATA.charts.year.barLabels,  barData: DATA.charts.year.barData,  lineLabels: DATA.charts.year.labels,  line1: DATA.charts.year.line1,  line2: DATA.charts.year.line2,  line3: DATA.charts.year.line3  }
-  };
+  function _buildPeriodData() {
+    return {
+      week:  {                                            barData: DATA.charts.week.barData,  lineLabels: DATA.charts.week.labels,  line1: DATA.charts.week.line1,  line2: DATA.charts.week.line2,  line3: DATA.charts.week.line3  },
+      month: { barLabels: DATA.charts.month.barLabels,  barData: DATA.charts.month.barData, lineLabels: DATA.charts.month.labels, line1: DATA.charts.month.line1, line2: DATA.charts.month.line2, line3: DATA.charts.month.line3 },
+      year:  { barLabels: DATA.charts.year.barLabels,   barData: DATA.charts.year.barData,  lineLabels: DATA.charts.year.labels,  line1: DATA.charts.year.line1,  line2: DATA.charts.year.line2,  line3: DATA.charts.year.line3  }
+    };
+  }
+  let periodData = _buildPeriodData();
 
   function paceHighlightArrays(n, labels) {
     const hi = n - 1;
@@ -1714,14 +1750,17 @@
     return lineChart;
   }
 
-  charts['bar-o']  = makeBarChart('bar-o',  'week');
-  charts['line-o'] = makeLineChart('line-o', 'week');
+  charts['bar-o']  = makeBarChart('bar-o',  'month');
+  charts['line-o'] = makeLineChart('line-o', 'month');
 
   // ---- Period switcher ----
-  const barTitles  = { week:'Office days by weekday', month:'Office days by week', year:'Office days by month' };
+  let currentPeriod = 'month';
+  const barTitles  = { week:'Office days by weekday', month:'Office days by last 5 weeks', year:'Office days by last 5 months' };
   const lineTitles = { week:'Last 4 weeks', month:'Last 6 months', year:'Last 12 months' };
+  const paceTitles = { week:'Pace tracker for the last 4 weeks', month:'Pace tracker for the last 6 months', year:'Pace tracker for the last 12 months' };
 
   function setPeriod(view, period, btn) {
+    currentPeriod = period;
     btn.closest('.period-tabs').querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
@@ -1740,6 +1779,7 @@
     bar.options.scales.y.ticks.display = period !== 'week';
     bar.update();
     document.getElementById(`bar-title-${view}`).textContent = barTitles[period];
+    document.getElementById(`pace-title-${view}`).textContent = paceTitles[period];
 
     const line = charts[`line-${view}`];
     const radii = linePointRadii(d.lineLabels.length, d.lineLabels);
@@ -1782,11 +1822,14 @@
   }
 
   // ---- Pace Tracker ----
-  const paceByPeriod = {
-    week:  { labels: DATA.charts.week.labels,  actual: DATA.charts.week.paceActual,  goal: DATA.charts.week.paceGoal  },
-    month: { labels: DATA.charts.month.labels, actual: DATA.charts.month.paceActual, goal: DATA.charts.month.paceGoal },
-    year:  { labels: DATA.charts.year.labels,  actual: DATA.charts.year.paceActual,  goal: DATA.charts.year.paceGoal  }
-  };
+  function _buildPaceByPeriod() {
+    return {
+      week:  { labels: DATA.charts.week.labels,  actual: DATA.charts.week.paceActual,  goal: DATA.charts.week.paceGoal  },
+      month: { labels: DATA.charts.month.labels, actual: DATA.charts.month.paceActual, goal: DATA.charts.month.paceGoal },
+      year:  { labels: DATA.charts.year.labels,  actual: DATA.charts.year.paceActual,  goal: DATA.charts.year.paceGoal  }
+    };
+  }
+  let paceByPeriod = _buildPaceByPeriod();
 
   function makePaceChart(id, period = 'week') {
     const pd = paceByPeriod[period];
@@ -1832,7 +1875,7 @@
     });
     return paceChart;
   }
-  charts['pace-o'] = makePaceChart('pace-o', 'week');
+  charts['pace-o'] = makePaceChart('pace-o', 'month');
 
   setTimeout(() => {
     ['bar-o', 'line-o', 'pace-o'].forEach(id => {
@@ -1841,11 +1884,10 @@
   }, 150);
 
   // ---- YTD Split donut ----
-  const ytdByPeriod = {
-    week:  DATA.charts.week.ytd,
-    month: DATA.charts.month.ytd,
-    year:  DATA.charts.year.ytd
-  };
+  function _buildYtdByPeriod() {
+    return { week: DATA.charts.week.ytd, month: DATA.charts.month.ytd, year: DATA.charts.year.ytd };
+  }
+  let ytdByPeriod = _buildYtdByPeriod();
   const ytdTitles = { week:'Last 4 weeks split', month:'Last 6 months split', year:'Last 12 months split' };
   const ytdTypes  = DATA.charts.types; // [{ type, label }] — driven by cheatSheet
   const ytdLabels = ytdTypes.map(t => t.label);
@@ -1892,7 +1934,7 @@
       type: 'doughnut',
       data: {
         labels: ytdLabels,
-        datasets: [{ data: ytdToArray(ytdByPeriod.week), backgroundColor: ytdColorsLight, borderWidth: 0 }]
+        datasets: [{ data: ytdToArray(ytdByPeriod.month), backgroundColor: ytdColorsLight, borderWidth: 0 }]
       },
       options: {
         cutout: '50%',
@@ -1916,15 +1958,15 @@
 
   // Initialize YTD row from DATA
   const _ytdRow = document.querySelector('#cy-o .ytd-row');
-  if (_ytdRow) _ytdRow.innerHTML = ytdRowHtml(ytdByPeriod.week);
+  if (_ytdRow) _ytdRow.innerHTML = ytdRowHtml(ytdByPeriod.month);
 
   // ---- Weekday Heatmap ----
-  const hmDataYear     = DATA.charts.heatmap;
-  const hmEntries      = Object.entries(hmDataYear);
-  const hmDataMonth    = Object.fromEntries(hmEntries.slice(-26));
-  const hmDataWeek     = Object.fromEntries(hmEntries.slice(-4));
-  const hmDataByPeriod = { week: hmDataWeek, month: hmDataMonth, year: hmDataYear };
-  const hmTitles       = { week:'4 weeks heatmap', month:'6 months heatmap', year:'12 months heatmap' };
+  function _buildHmDataByPeriod() {
+    const entries = Object.entries(DATA.charts.heatmap);
+    return { year: DATA.charts.heatmap, month: Object.fromEntries(entries.slice(-26)), week: Object.fromEntries(entries.slice(-4)) };
+  }
+  let hmDataByPeriod = _buildHmDataByPeriod();
+  const hmTitles     = { week:'4 weeks heatmap', month:'6 months heatmap', year:'12 months heatmap' };
 
   const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
 
@@ -1959,7 +2001,116 @@
       chartBody.appendChild(legend);
     }
   }
-  buildHeatmap('heatmap-o', hmDataByPeriod.week);
+  buildHeatmap('heatmap-o', hmDataByPeriod.month);
+
+  // ---- Apply year-tab defaults to all static titles and visibility ----
+  document.getElementById('bar-title-o').textContent  = barTitles.month;
+  document.getElementById('line-title-o').textContent = lineTitles.month;
+  document.getElementById('pace-title-o').textContent = paceTitles.month;
+  const _chartsCard = document.querySelector('.charts-card');
+  if (_chartsCard) {
+    _chartsCard.querySelectorAll('.bw-weekday').forEach(el => el.style.display = 'none');
+    _chartsCard.querySelectorAll('.bw-weekly') .forEach(el => el.style.display = 'flex');
+    _chartsCard.querySelectorAll('.bw-monthly').forEach(el => el.style.display = 'none');
+  }
+  const _ytdTitleEl = document.querySelector('#cy-o').closest('.chart-item').querySelector('.chart-item-title');
+  if (_ytdTitleEl) _ytdTitleEl.textContent = ytdTitles.month;
+  const _hmTitleEl = document.querySelector('#heatmap-o').closest('.chart-item').querySelector('.chart-item-title');
+  if (_hmTitleEl) _hmTitleEl.textContent = hmTitles.month;
+
+  // ---- Data refresh (no page reload) ----
+  function refreshData(btn) {
+    if (typeof google === 'undefined' || !google.script) return;
+    btn.classList.add('loading');
+    google.script.run
+      .withSuccessHandler(d => applyRefresh(d, btn))
+      .withFailureHandler(() => btn.classList.remove('loading'))
+      .GetFreshData();
+  }
+
+  function applyRefresh(newStats, btn) {
+    if (!newStats) { btn.classList.remove('loading'); return; }
+
+    // Update DATA in-place so all helper functions pick up fresh values
+    DATA.rings    = newStats.rings;
+    DATA.days     = newStats.days;
+    DATA.charts   = newStats.charts;
+    DATA.calendar = newStats.calendar;
+
+    // Rebuild period data refs from fresh DATA
+    periodData    = _buildPeriodData();
+    paceByPeriod  = _buildPaceByPeriod();
+    ytdByPeriod   = _buildYtdByPeriod();
+    hmDataByPeriod = _buildHmDataByPeriod();
+
+    // Destroy and recreate ring charts
+    ringCharts.forEach(c => c && c.destroy());
+    ringCharts.length = 0;
+    makeRing('r-o-1', DATA.rings.best10of12, 0);
+    makeRing('r-o-2', DATA.rings.best8of12,  1);
+    makeRing('r-o-3', DATA.rings.best8of10,  2);
+    makeRing('r-o-4', DATA.rings.yearToDateAverage, 3);
+    // Restore dark mode ring colors if needed
+    if (document.body.classList.contains('dark')) {
+      const newRingFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
+      const newRingBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+      ringCharts.forEach((c, i) => { if (c) { c.data.datasets[0].backgroundColor = [newRingFill[i], newRingBg[i]]; c.update('none'); } });
+    }
+
+    // Update ring center text
+    document.getElementById('rc-o-1').textContent = (+DATA.rings.best10of12).toFixed(1);
+    document.getElementById('rc-o-2').textContent = (+DATA.rings.best8of12).toFixed(1);
+    document.getElementById('rc-o-3').textContent = (+DATA.rings.best8of10).toFixed(1);
+    const rc4 = document.getElementById('rc-o-4');
+    if (rc4) rc4.textContent = DATA.rings.yearToDateAverage != null ? (+DATA.rings.yearToDateAverage).toFixed(1) : '–';
+    const rcaEl = document.getElementById('rca-o');
+    if (rcaEl) rcaEl.textContent = (+DATA.rings.rawAverage).toFixed(1);
+
+    // Rebuild projection text
+    const projEl = document.getElementById('proj-o');
+    if (projEl) {
+      let html = `At your current lowest average of <strong>${(+DATA.rings.lowestAverage).toFixed(1)} days/week</strong>, you'll finish ${DATA.calendar.month} with <strong>${DATA.rings.projectedDays}/${DATA.rings.totalDays}</strong> office days.`;
+      if (DATA.rings.projectedDays < DATA.rings.monthlyGoal) html += ` Falling short <strong>${DATA.rings.monthlyGoal - DATA.rings.projectedDays}</strong> days.`;
+      projEl.innerHTML = html;
+    }
+
+    // Update day pills
+    document.getElementById('pill-1-count-o').textContent = DATA.days.thisWeek;
+    document.getElementById('pill-1-ww-o').textContent    = 'WW ' + DATA.days.thisWeekNumber;
+    document.getElementById('pill-2-count-o').textContent = DATA.days.nextWeek;
+    document.getElementById('pill-2-ww-o').textContent    = 'WW ' + DATA.days.nextWeekNumber;
+
+    // Rebuild days projection text
+    const daysProjEl = document.getElementById('days-proj-o');
+    if (daysProjEl) {
+      daysProjEl.innerHTML = `<span style="font-size:12px;">Absence planned: ${DATA.days.vacationPlanned} vacation · ${DATA.days.oncallPlanned} on call day off · ${DATA.days.holidayPlanned} holiday</span><br>You need <strong>${DATA.days.daysPerWeekNeeded} days/week</strong> for the rest of the year to hit your ${DATA.charts.goal} day/week goal`;
+    }
+
+    // Destroy and recreate period charts
+    ['bar-o', 'line-o', 'pace-o', 'ytd-o'].forEach(id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } });
+    charts['bar-o']  = makeBarChart('bar-o',  currentPeriod);
+    charts['line-o'] = makeLineChart('line-o', currentPeriod);
+    charts['pace-o'] = makePaceChart('pace-o', currentPeriod);
+    charts['ytd-o']  = makeYtdChart('ytd-o');
+    if (document.body.classList.contains('dark')) {
+      charts['ytd-o'].data.datasets[0].backgroundColor = ytdColorsDark;
+      charts['ytd-o'].update('none');
+    }
+
+    // Refresh YTD row and title
+    const ytdRow = document.querySelector('#cy-o .ytd-row');
+    if (ytdRow) ytdRow.innerHTML = ytdRowHtml(ytdByPeriod[currentPeriod]);
+    const ytdTitleEl = document.querySelector('#cy-o').closest('.chart-item').querySelector('.chart-item-title');
+    if (ytdTitleEl) ytdTitleEl.textContent = ytdTitles[currentPeriod];
+
+    // Rebuild calendar and heatmap
+    const calEl = document.getElementById('cal-o');
+    if (calEl) { calEl.innerHTML = ''; buildCalendar('cal-o'); }
+    buildHeatmap('heatmap-o', hmDataByPeriod[currentPeriod]);
+
+    btn.classList.remove('loading');
+  }
+
   } // end main-view init guard
 </script>
 

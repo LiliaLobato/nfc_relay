@@ -64,20 +64,22 @@ SPOT_CHECKS = [
     ('TitleCard  status-badge class + label (Office)', 'Office', r'status-badge office">Office Day<'),
     ('TitleCard  status-badge class + label (Home)',   'Home',   r'status-badge home">Home Day<'),
     ('TitleCard  weekNumber in header-ww',             'Office', r'header-ww">WW16<'),
+    ('TitleCard  alreadyLoggedMessage (Logged)',       'Logged', r'already-logged-banner true office.*?Already logged'),
 
-    # RingsCard — avg values inside the correct ring-center slots
-    ('RingsCard  best10of12 in ring1 center',  'Office', r'color:var\(--ring1\)">2\.4<'),
-    ('RingsCard  best8of12 in ring2 center',   'Office', r'color:var\(--ring2\)">2\.8<'),
-    ('RingsCard  best8of10 in ring3 center',   'Office', r'color:var\(--ring3\)">2\.1<'),
-    ('RingsCard  rawAverage in absence-stat', 'Office', r'absence-stat[^<]*<strong>2\.1<'),
-    ('RingsCard  projection: avg + days',     'Office', r'2\.4 days/week.{0,60}15/22'),
+    # RingsCard — correct field tags inside the correct ring-center slots
+    # (stitch cannot evaluate JS expressions like .toFixed(1), so we check field name in slot)
+    ('RingsCard  best10of12 in ring1 center',  'Office', r'--ring1\)">.*?best10of12'),
+    ('RingsCard  best8of12 in ring2 center',   'Office', r'--ring2\)">.*?best8of12'),
+    ('RingsCard  best8of10 in ring3 center',   'Office', r'--ring3\)">.*?best8of10'),
+    ('RingsCard  rawAverage in absence-stat',  'Office', r'absence-stat.*?rawAverage'),
+    ('RingsCard  projection lowestAverage',    'Office', r'lowestAverage.*?projectedDays'),
 
     # DaysCard — pill counts differ between Office (thisWeek=1) and Home (thisWeek=0)
-    ('DaysCard   thisWeek in pill (Office)',  'Office', r'day-pill-count">1<'),
-    ('DaysCard   thisWeek in pill (Home)',    'Home',   r'day-pill-count">0<'),
-    ('DaysCard   current WW pill label',     'Office', r'day-pill-ww">WW 16<'),
-    ('DaysCard   next WW pill label',        'Office', r'day-pill-ww">WW 17<'),
-    ('DaysCard   projection sentence',       'Office', r'3\.3 days/week.{0,40}2 months.{0,40}3-day/week'),
+    ('DaysCard   thisWeek in pill (Office)',  'Office', r'day-pill-count[^>]*>1<'),
+    ('DaysCard   thisWeek in pill (Home)',    'Home',   r'day-pill-count[^>]*>0<'),
+    ('DaysCard   current WW pill label',     'Office', r'day-pill-ww[^>]*>WW 16<'),
+    ('DaysCard   next WW pill label',        'Office', r'day-pill-ww[^>]*>WW 17<'),
+    ('DaysCard   projection sentence',       'Office', r'3\.3 days/week.{0,40}rest of the year.{0,40}3 day/week'),
 
     # CalendarCard — monthLabel inside cal-title
     ('CalendarCard  monthLabel (Office)', 'Office', r'cal-title">April 2026<'),

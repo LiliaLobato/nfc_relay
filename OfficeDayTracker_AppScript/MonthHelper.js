@@ -17,7 +17,7 @@
  */
 function _buildChartMonthTab(context) {
   const { allWeekData, weekNumber, weekGoal, beltData,
-          year, priorYearData } = context;
+          year, priorYearData, todayColIdx } = context;
 
   const monthWWs = [];
   for (let i = 25; i >= 0; i--) monthWWs.push(weekNumber - i);
@@ -49,9 +49,11 @@ function _buildChartMonthTab(context) {
     return Math.round(validWeeks * weekGoal * 10) / 10;
   });
 
-  const ytd = _countChartTypesInRange(Math.max(1, weekNumber - 25), weekNumber, context);
+  const ytd = _countChartTypesInRange(weekNumber - 25, weekNumber, context);
 
+  // Exclude current week from best/worst unless ≥ 3 days have elapsed (Wed or later)
   const bw = _bestWorstReduce(monthWWs, ww => {
+    if (ww === weekNumber && todayColIdx < 2) return null;
     const row = _getChartWeekRow(ww, allWeekData, priorYearData);
     return row ? _officeCount(row) : null;
   });

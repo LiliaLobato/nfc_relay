@@ -2,22 +2,22 @@
       <div class="card-label">Best of averages — WW <?= data.weekNumber ?></div>
       <div class="rings-row rings-row--four">
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" style="color:var(--ring1)"><?= data.rings.best10of12 ?></div></div>
+          <div class="ring-wrap"><canvas id="r-o-1"></canvas><div class="ring-center" id="rc-o-1" style="color:var(--ring1)"><?= (+data.rings.best10of12).toFixed(1) ?></div></div>
           <div class="ring-label">Best 10/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" style="color:var(--ring2)"><?= data.rings.best8of12 ?></div></div>
+          <div class="ring-wrap"><canvas id="r-o-2"></canvas><div class="ring-center" id="rc-o-2" style="color:var(--ring2)"><?= (+data.rings.best8of12).toFixed(1) ?></div></div>
           <div class="ring-label">Best 8/12</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" style="color:var(--ring3)"><?= data.rings.best8of10 ?></div></div>
+          <div class="ring-wrap"><canvas id="r-o-3"></canvas><div class="ring-center" id="rc-o-3" style="color:var(--ring3)"><?= (+data.rings.best8of10).toFixed(1) ?></div></div>
           <div class="ring-label">Best 8/10</div>
         </div>
         <div class="ring-item">
-          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" style="color:var(--ring4)"><?= data.rings.yearToDateAverage ?></div></div>
+          <div class="ring-wrap"><canvas id="r-o-4"></canvas><div class="ring-center" id="rc-o-4" style="color:var(--ring4)"><?= data.rings.yearToDateAverage != null ? (+data.rings.yearToDateAverage).toFixed(1) : '–' ?></div></div>
           <div class="ring-label">YTD Avg</div>
         </div>
       </div>
-      <div class="absence-stat">Raw yearly average: <strong><?= data.rings.rawAverage ?></strong></div>
-      <div class="projection-text" style="margin-top:8px;">At your current best 10/12 average of <strong><?= data.rings.best10of12 ?> days/week</strong>, you'll finish <?= data.calendar.month ?> with <strong><?= data.rings.projectedDays ?>/<?= data.rings.totalDays ?></strong> office days.</div>
+      <div class="absence-stat">Raw yearly average: <strong id="rca-o"><?= (+data.rings.rawAverage).toFixed(1) ?></strong></div>
+      <div class="projection-text" id="proj-o" style="margin-top:8px;">At your current lowest average of <strong><?= (+data.rings.lowestAverage).toFixed(1) ?> days/week</strong>, you'll finish <?= data.calendar.month ?> with <strong><?= data.rings.projectedDays ?>/<?= data.rings.totalDays ?></strong> office days.<? if (data.rings.projectedDays < data.rings.monthlyGoal) { ?> Falling short <strong><?= data.rings.monthlyGoal - data.rings.projectedDays ?></strong> days.<? } ?></div>
     </div>

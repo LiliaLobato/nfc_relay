@@ -5,6 +5,21 @@
  * All computation delegates to DataAssembler.
  */
 
+/**
+ * Returns fresh stats data for client-side refresh. Read-only — no sheet write.
+ * @returns {{ rings, days, calendar, charts }}
+ */
+function GetFreshData() {
+  sheet = GetCurrentSheet();
+  const today    = new Date();
+  const year     = today.getFullYear();
+  const monthIdx = today.getMonth();
+  const weekNumber = GetCurrentISOWeek();
+  let dayOfWeek;
+  try { dayOfWeek = GetCurrentDayOfWeek(); } catch(e) { dayOfWeek = WEEK.Fri; }
+  return BuildStatsData(weekNumber, dayOfWeek, year, monthIdx);
+}
+
 //////// Global state ////////
 const rawDate = new Date();
 var sheet;
@@ -66,10 +81,22 @@ function BuildPageData(key) {
     data.status      = 'office';
     data.statusLabel = 'Office Day';
   } else {
-    data.status      = 'home';
-    data.statusLabel = 'Home Day';
-    console.log('Home day, no write');
+    const currentDayCell = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
+    const cellValue      = sheet.getRange(currentDayCell).getValue();
+    if (cellValue) {
+      const loggedType   = cheatSheet[NormalizeCellKey(cellValue)] || 'Home';
+      data.status        = CellTypeFromValue(cellValue);
+      data.statusLabel   = loggedType === 'Office' ? 'Office Day' : loggedType;
+      data.alreadyLogged = true;
+    } else {
+      data.status      = 'home';
+      data.statusLabel = 'Home Day';
+    }
+    console.log('Home day, no write. Cell:', cellValue || 'empty');
   }
+
+  const _alreadyLoggedMsgs = { vacation: 'Enjoy your time off!', holiday: 'Enjoy your long weekend!', oncalloff: 'Enjoy your time off!' };
+  data.alreadyLoggedMessage = data.alreadyLogged ? (_alreadyLoggedMsgs[data.status] || 'Already logged') : '';
 
   Object.assign(data, BuildStatsData(data.weekNumber, dayOfWeek, year, monthIdx));
   return data;

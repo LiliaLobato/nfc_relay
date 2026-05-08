@@ -27,6 +27,17 @@ function GetCurrentSheet(){
 }
 
 /**
+ * Normalises a raw cell value to a consistent cheatSheet key.
+ * All keys are stored and looked up in upper-case so sheet casing never matters.
+ *
+ * @param {*} value raw cell value
+ * @returns {string}
+ */
+function NormalizeCellKey(value) {
+  return String(value).toUpperCase();
+}
+
+/**
  * Reads the code to label mapping into the global cheatSheet.
  */
 function GetCheatSheet(){
@@ -34,9 +45,9 @@ function GetCheatSheet(){
 
   cheatSheet = {};
   rawCheatSheet.forEach(row => {
-    const key   = row[1];
+    const key   = NormalizeCellKey(row[1]);
     const value = row[0];
-    if (key && value) cheatSheet[key] = value;
+    if (row[1] && value) cheatSheet[key] = value;
   });
 }
 
@@ -53,7 +64,7 @@ function GetCheatSheet(){
  */
 function CellTypeFromValue(value) {
   if (!value && value !== 0) return 'home';
-  const label = cheatSheet[value];
+  const label = cheatSheet[NormalizeCellKey(value)];
   if (!label) return 'home';
   return label.toLowerCase().replace(/\s+/g, '');
 }

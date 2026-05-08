@@ -12,6 +12,8 @@
 <body class="<?!= isDark ? 'dark' : '' ?>">
 
 <button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode">🌙</button>
+<script>var APP_URL = '<?!= ScriptApp.getService().getUrl() ?>';</script>
+<button class="refresh-btn" onclick="refreshData(this)" title="Refresh data">↻</button>
 
 <!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
 <div id="view-main" class="view">

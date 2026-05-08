@@ -2,15 +2,15 @@
       <div class="card-label">Days still needed</div>
       <div class="days-pills">
         <div class="day-pill">
-          <div class="day-pill-count"><?= data.days.thisWeek ?></div>
-          <div class="day-pill-label">This week</div>
-          <div class="day-pill-ww">WW <?= data.weekNumber ?></div>
+          <div class="day-pill-count" id="pill-1-count-o"><?= data.days.thisWeek ?></div>
+          <div class="day-pill-label"><?= data.days.thisWeekLabel ?></div>
+          <div class="day-pill-ww" id="pill-1-ww-o">WW <?= data.days.thisWeekNumber ?></div>
         </div>
         <div class="day-pill">
-          <div class="day-pill-count"><?= data.days.nextWeek ?></div>
-          <div class="day-pill-label">Next week</div>
-          <div class="day-pill-ww">WW <?= data.days.nextWeekNumber ?></div>
+          <div class="day-pill-count" id="pill-2-count-o"><?= data.days.nextWeek ?></div>
+          <div class="day-pill-label"><?= data.days.nextWeekLabel ?></div>
+          <div class="day-pill-ww" id="pill-2-ww-o">WW <?= data.days.nextWeekNumber ?></div>
         </div>
       </div>
-      <div class="projection-text" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: <?= data.days.vacationPlanned ?> vacation · <?= data.days.oncallPlanned ?> on call day off · <?= data.days.holidayPlanned ?> holiday</span><br>You need <strong><?= data.days.daysPerWeekNeeded ?> days/week</strong> over the next <?= data.days.monthsRemaining ?> months to hit your <?= data.charts.goal ?>-day/week goal</div>
+      <div class="projection-text" id="days-proj-o" style="margin-top:12px;"><span style="font-size:12px;">Absence planned: <?= data.days.vacationPlanned ?> vacation · <?= data.days.oncallPlanned ?> on call day off · <?= data.days.holidayPlanned ?> holiday</span><br>You need <strong><?= data.days.daysPerWeekNeeded ?> days/week</strong> for the rest of the year to hit your <?= data.charts.goal ?> day/week goal</div>
     </div>

@@ -113,8 +113,8 @@ function _bestWorstReduce(items, valueFn) {
   items.forEach(item => {
     const val = valueFn(item);
     if (val === null) return;
-    if (val > bestVal)  { bestVal  = val; best  = item; }
-    if (val < worstVal) { worstVal = val; worst = item; }
+    if (val >= bestVal)  { bestVal  = val; best  = item; }
+    if (val <= worstVal) { worstVal = val; worst = item; }
   });
   return best !== null ? { best: { item: best, value: bestVal }, worst: { item: worst, value: worstVal } } : null;
 }
@@ -134,22 +134,22 @@ function _chartHeatmapType(cell, isFuture) {
 
 /**
  * Counts occurrences of each day type within an ISO week range.
- * Respects startColWW1 for WW1 and stops at todayColIdx on the current week.
+ * Stops at todayColIdx on the current week; counts all days of every other week
+ * including WW1 pre-Jan days (Dec 29-31) and prior-year weeks via priorYearData.
  *
- * @param {number} fromWW first ISO week to include
+ * @param {number} fromWW first ISO week to include (may be <= 0 for prior-year weeks)
  * @param {number} toWW last ISO week to include
  * @param {Object} context shared context object from BuildChartsData
  * @returns {Object} map of CSS type string → count (e.g. { office: 5, home: 3, ... })
  */
 function _countChartTypesInRange(fromWW, toWW, context) {
-  const { allWeekData, weekNumber, todayColIdx, startColWW1, priorYearData } = context;
+  const { allWeekData, weekNumber, todayColIdx, priorYearData } = context;
   const counts = {};
   for (let ww = fromWW; ww <= toWW; ww++) {
     const row = _getChartWeekRow(ww, allWeekData, priorYearData);
     if (!row) continue;
-    const startCol = (ww === 1) ? startColWW1 : 0;
-    const endCol   = (ww === weekNumber) ? todayColIdx : WEEK.Fri;
-    for (let col = startCol; col <= endCol; col++) {
+    const endCol = (ww === weekNumber) ? todayColIdx : WEEK.Fri;
+    for (let col = 0; col <= endCol; col++) {
       const type = CellTypeFromValue(row[col]);
       counts[type] = (counts[type] || 0) + 1;
     }
@@ -163,28 +163,30 @@ function _countChartTypesInRange(fromWW, toWW, context) {
  * @param {{ best10of12: number, best8of12: number, best8of10: number }} stats belt averages
  * @param {Object} ytd from CountYTDStats
  * @param {number} workDaysElapsedYTD calendar-year work days elapsed (Dec WW1 days excluded)
- * @param {number} workDaysInCurrentMonth total work days in the current calendar month
+ * @param {number} workDaysInCurrentMonth total Mon-Fri days in the current calendar month (from sheet U column)
  * @param {number} goalTarget cumulative office-day goal through today's month
  * @param {number} weekGoal weekly office-day goal from E10
  * @param {number|null} yearToDateAverage average of monthly avg for elapsed months
+ * @param {number} monthlyGoal office-day goal for the current month (from sheet AG column)
  * @returns {Object}
  */
-function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage) {
+function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage, monthlyGoal) {
   const effectiveDaysElapsed = workDaysElapsedYTD - (ytd.holiday || 0);
+  const lowestAverage = Math.min(stats.best10of12, stats.best8of12, stats.best8of10);
   return {
-    best10of12:    stats.best10of12,
-    best8of12:     stats.best8of12,
-    best8of10:     stats.best8of10,
-    rawAverage:    effectiveDaysElapsed > 0
-                     ? Math.round((ytd.office || 0) / effectiveDaysElapsed * 5 * 10) / 10
-                     : null,
-    goalActual:    ytd.office || 0,
+    best10of12:     stats.best10of12,
+    best8of12:      stats.best8of12,
+    best8of10:      stats.best8of10,
+    lowestAverage,
+    rawAverage:     effectiveDaysElapsed > 0
+                      ? Math.round((ytd.office || 0) / effectiveDaysElapsed * 5 * 10) / 10
+                      : null,
+    goalActual:     ytd.office || 0,
     goalTarget,
     weekGoal,
-    projectedDays:      workDaysElapsedYTD > 0
-                          ? Math.round((ytd.office || 0) / workDaysElapsedYTD * workDaysInCurrentMonth)
-                          : 0,
-    totalDays:          workDaysInCurrentMonth,
+    projectedDays:  Math.round(lowestAverage * workDaysInCurrentMonth / 5),
+    totalDays:      workDaysInCurrentMonth,
+    monthlyGoal,
     yearToDateAverage,
   };
 }

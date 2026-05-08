@@ -13,18 +13,24 @@
  * @param {number} annualTarget total office-day goal for the full year
  * @param {number} weeksRemaining
  * @param {number} monthIdx zero-based current month index
+ * @param {boolean} isFridayOrWeekend true when current week is done (Friday or weekend)
+ * @param {{ vacation: number, oncalloff: number, holiday: number }} pillAbsence absence counts for the two pill weeks
  * @returns {Object}
  */
-function BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx) {
+function BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx, isFridayOrWeekend, pillAbsence) {
+  const baseWW = isFridayOrWeekend ? weekNumber + 1 : weekNumber;
   return {
     thisWeek:          needed.thisWeek,
     nextWeek:          needed.nextWeek,
-    nextWeekNumber:    weekNumber < 52 ? weekNumber + 1 : 1,
+    thisWeekNumber:    baseWW,
+    thisWeekLabel:     isFridayOrWeekend ? 'Next week'  : 'This week',
+    nextWeekNumber:    baseWW < 52 ? baseWW + 1 : 1,
+    nextWeekLabel:     isFridayOrWeekend ? 'Week after' : 'Next week',
     daysPerWeekNeeded: Math.round((annualTarget - (ytd.office || 0)) / weeksRemaining * 10) / 10,
     monthsRemaining:   12 - (monthIdx + 1),
-    vacationPlanned:   ytd.vacation  || 0,
-    oncallPlanned:     ytd.oncalloff || 0,
-    holidayPlanned:    ytd.holiday   || 0,
+    vacationPlanned:   pillAbsence.vacation  || 0,
+    oncallPlanned:     pillAbsence.oncalloff || 0,
+    holidayPlanned:    pillAbsence.holiday   || 0,
   };
 }
 
@@ -79,9 +85,10 @@ function _buildChartWeekTab(context) {
     ytd[type] = (ytd[type] || 0) + 1;
   });
 
-  // Best/worst weekday by office count across all available data
+  // Best/worst weekday — exclude current week unless ≥ 3 days have elapsed (Wed or later)
+  const dowEndWW  = todayColIdx < 2 ? weekNumber - 1 : weekNumber;
   const dowCounts = [0, 0, 0, 0, 0];
-  for (let ww = 1; ww <= weekNumber; ww++) {
+  for (let ww = 1; ww <= dowEndWW; ww++) {
     const row = allWeekData[ww - 1];
     if (!row) continue;
     const startCol = (ww === 1) ? startColWW1 : 0;

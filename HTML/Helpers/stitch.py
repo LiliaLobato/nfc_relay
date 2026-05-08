@@ -6,12 +6,14 @@ Mirrors Apps Script serve-time template evaluation. --theme and --data are
 independent axes: use either, both, or neither.
 
 TAG RESOLUTION TABLE
-  Tag                               --theme only        --theme --data
-  <?!= include('Theme' + theme) ?>  resolved            resolved
-  <?!= include('X') ?>              resolved            resolved
-  <?!= JSON.stringify(data) ?>      left as-is          TestData{View}.html inlined
-  <?!= data.X ?>                    [mock: data.X]      TestData JSON value
-  <?=  data.X.Y.Z ?>                left as-is          TestData JSON value (escaped)
+  Tag                                          --theme only        --theme --data
+  <?!= include('Theme' + theme) ?>             resolved            resolved
+  <?!= include('X') ?>                         resolved            resolved
+  <?!= JSON.stringify(data) ?>                 left as-is          TestData{View}.html inlined
+  <?!= data.X ?>                               [mock: data.X]      TestData JSON value
+  <?=  data.X.Y.Z ?>                           left as-is          TestData JSON value (escaped)
+  <?=  (+data.X.Y).toFixed(N) ?>               left as-is          formatted float (N decimals)
+  <?=  data.X != null ? (...).toFixed(N) : ?>  left as-is          formatted float or fallback
 
 Themes:  Default | SoftPurple | Matcha | Gummy
 Views:   Office | Home | Weekend | Logged | Fatal | Unauth
@@ -54,6 +56,12 @@ THEME_STEMS = {
 _DATA_TAG         = re.compile(r'<\?!=\s*JSON\.stringify\(data\)\s*\?>')
 _DATA_FIELD_TAG   = re.compile(r'<\?!=\s*data\.(\w+)\s*\?>')
 _DATA_ESCAPED_TAG = re.compile(r'<\?=\s*data\.([\w]+(?:\.[\w]+)*)\s*\?>')
+# <?= (+data.x.y).toFixed(N) ?>
+_DATA_TOFIXED_TAG = re.compile(r'<\?=\s*\(\+data\.([\w]+(?:\.[\w]+)*)\)\.toFixed\((\d+)\)\s*\?>')
+# <?= data.x.y != null ? (+data.x.y).toFixed(N) : 'fallback' ?>
+_DATA_NULL_TOFIXED_TAG = re.compile(
+    r"<\?=\s*data\.([\w]+(?:\.[\w]+)*)\s*!=\s*null\s*\?\s*\(\+data\.[\w.]+\)\.toFixed\((\d+)\)\s*:\s*'([^']*)'\s*\?>"
+)
 _INCLUDE_TAG      = re.compile(r"<\?!=\s*Include\(['\"](\w+)['\"]\)\s*\?>")
 _THEME_TAG        = re.compile(r"<\?!=\s*Include\(['\"]Theme['\"]\s*\+\s*theme\)\s*\?>")
 
@@ -128,6 +136,30 @@ def resolve(content, theme=None, view=None, data_obj=None, depth=0):
             return f'[missing: data.{path}]'
         return ('true' if val else 'false') if isinstance(val, bool) else str(val)
 
+    def _sub_data_tofixed(m):
+        path, decimals = m.group(1), int(m.group(2))
+        if data_obj is None:
+            return m.group(0)
+        val = _get_nested(data_obj, path)
+        if val is None:
+            return f'[missing: data.{path}]'
+        try:
+            return f'{float(val):.{decimals}f}'
+        except (TypeError, ValueError):
+            return str(val)
+
+    def _sub_data_null_tofixed(m):
+        path, decimals, fallback = m.group(1), int(m.group(2)), m.group(3)
+        if data_obj is None:
+            return m.group(0)
+        val = _get_nested(data_obj, path)
+        if val is None:
+            return fallback
+        try:
+            return f'{float(val):.{decimals}f}'
+        except (TypeError, ValueError):
+            return fallback
+
     def _sub_include(m):
         name = m.group(1)
         path = COMPONENTS_DIR / f'{name}.html'
@@ -140,6 +172,8 @@ def resolve(content, theme=None, view=None, data_obj=None, depth=0):
     content = _THEME_TAG.sub(_sub_theme, content)
     content = _DATA_TAG.sub(_sub_data, content)
     content = _DATA_FIELD_TAG.sub(_sub_data_field, content)
+    content = _DATA_NULL_TOFIXED_TAG.sub(_sub_data_null_tofixed, content)
+    content = _DATA_TOFIXED_TAG.sub(_sub_data_tofixed, content)
     content = _DATA_ESCAPED_TAG.sub(_sub_data_escaped, content)
     content = _INCLUDE_TAG.sub(_sub_include, content)
     return content

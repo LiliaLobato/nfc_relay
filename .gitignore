@@ -19,3 +19,6 @@ appsscript.json
 
 # html
 */HTML_StitchOutput/*.html
+
+# claude
+.claude*
