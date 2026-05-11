@@ -52,10 +52,22 @@ Tokens are stored in Apps Script **PropertiesService**, not in code or URLs. See
 
 ### Apps Script Logic
 
-1. `doGet` validates the token, [picks a random theme](#theme-system), detects night mode, calls `Main(key)`
-2. `Main` opens the current year's sheet, reads today's date/week, optionally writes the office day, then calls `buildPageData()` to assemble the full DATA object
+1. `doGet` validates the token, [picks a random theme](#theme-system), detects night mode (auto after 4 pm / before 9 am, overridable via `?dark=1`), calls `BuildPageData(key)`
+2. `BuildPageData` checks the [PropertiesService cache](#cache) first and skips all sheet reads if cache data available. On a cache miss it opens the current year's [sheet](#google-sheet-layout), reads today's date/week; optionally writes the office day, builds the full DATA object, and writes the cache
 3. The HTML template is evaluated: `Index.html` includes all component files and injects `DATA` as JSON
 4. The browser receives one fully assembled HTML page with no extra requests
+
+### Cache
+
+A [PropertiesService](https://developers.google.com/apps-script/reference/properties/properties-service?hl=es-419) cache is written on the first tap and reused for the rest of that calendar day, avoiding repeated sheet reads:
+
+| Scenario | Cache behaviour | Flow |
+|---|---|---|
+| Any key, different day | Cache miss | Full sheet read, cache refreshed |
+| Office, not yet logged today | Cache miss | Writes the cell, then caches |
+| Office, already logged today | Cache hit | 0 sheet reads |
+| Home / Weekend, same day | Cache hit | 0 sheet reads |
+| Refresh button | Cache ignored | Always bypasses the cache (`GetFreshData`) and overwrites it with live data |
 
 ### Theme System
 
@@ -90,6 +102,8 @@ Dark mode activates automatically but can be forced via URL:
 
 Cell address formula: Row = ISO week number + 12. Columns: Mon=D, Tue=E, Wed=F, Thu=G, Fri=H.
 
+I have included a test data copy under HTML/testData, it needs to be uploaded to google drive. The formulas might show as incorrect when opening it from Excell.
+
 ---
 <br><br>
 
@@ -100,7 +114,7 @@ Cell address formula: Row = ISO week number + 12. Columns: Mon=D, Tue=E, Wed=F, 
 - Python 3.8+
 - Node.js + npm
 - [clasp](https://github.com/google/clasp) v3+ (`npm install -g @google/clasp`)
-- A Google account with access to the Apps Script project
+- A Google account with access to an Apps Script project
 
 ### Setup
 
@@ -194,14 +208,33 @@ Tokens are never hardcoded in source. After deploying the Apps Script project, s
 ## Adding a New Theme
 
 1. Create `OfficeDayTracker_AppScript/ThemeMyTheme.html` with ~30 CSS variable definitions (copy an existing theme file and adjust the values)
-2. Add `'MyTheme'` to the `themes` array in `pickTheme()` in `NfcRelay.js`
+2. Add `'MyTheme'` to the `themes` array in `PickTheme()` in `NfcRelay.js`
 3. Add it to `THEMES` in `HTML/Helpers/stitch.py`
 4. Run `python stitch.py --theme MyTheme --data Office` to preview it locally
 
 ---
+## Apps Script File Map
+
+| File | Responsibility |
+|------|---------------|
+| `NfcRelay.js` | `doGet` entry point, auth, theme selection, template rendering |
+| `Main.js` | `BuildPageData` and `GetFreshData`, perform a cache check and page data assembly |
+| `CacheHelper.js` | PropertiesService-backed daily cache (read, write, validate, rebuild) |
+| `DataAssembler.js` | `BuildStatsData` turns a SheetBundle into rings/days/calendar/charts |
+| `SheetHelper.js` | Sheet connection, bulk data load (`LoadSheetBundle`), cheat-sheet parsing |
+| `CellHelper.js` | Cell address calculation, day-cell read/write, status resolution |
+| `DateHelper.js` | ISO week utilities |
+| `CalendarHelper.js` | Calendar month builder |
+| `WeekHelper.js` | Week tab chart data and days card |
+| `MonthHelper.js` | Month tab chart data |
+| `YearHelper.js` | Year tab chart data and YTD stats |
+| `ChartsHelper.js` | Shared chart utilities, rings card data, heatmap type counting |
+| `HeatmapHelper.js` | Heatmap builder |
+| `GlobalConstants.js` | All shared constants and `round1dp()` |
+| `Test.js` | Manual test functions (run from the Apps Script editor) |
+
+---
+<br>
 
 ## Useful Links
-
-- [Google Sheet tracker](https://docs.google.com/spreadsheets/d/11fQLZQ4cqqnbgUBWGKMeXCRhwnzLBWuqQoPDIhiqgy4/edit)
-- [Apps Script project](https://script.google.com/u/0/home/projects/1Xwb9vyBb1GsjhHlPBB1QZxdOlogHUgJGG_LDg3auhDUbM9UM7WCRLqyV/edit)
 - [Original NFC relay concept](https://github.com/mrsannaclarke/nfc-relay)
