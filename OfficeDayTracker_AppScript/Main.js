@@ -1,50 +1,48 @@
 /**
  * Main.js
- * Entry point for page data assembly. One function: BuildPageData.
- * Handles sheet setup, weekend detection, and office day writes.
- * All computation delegates to DataAssembler.
+ * Entry point for page data assembly.
+ *
+ * First call of the day hits the sheet (6–7 API calls).
+ * Subsequent calls serve from PropertiesService cache (0 sheet calls).
+ * Soft reload (GetFreshData) always bypasses and refreshes the cache.
+ * Office path bypasses cache when alreadyLogged=false — a write may be needed.
  */
-
-/**
- * Returns fresh stats data for client-side refresh. Read-only — no sheet write.
- * @returns {{ rings, days, calendar, charts }}
- */
-function GetFreshData() {
-  sheet = GetCurrentSheet();
-  const today    = new Date();
-  const year     = today.getFullYear();
-  const monthIdx = today.getMonth();
-  const weekNumber = GetCurrentISOWeek();
-  let dayOfWeek;
-  try { dayOfWeek = GetCurrentDayOfWeek(); } catch(e) { dayOfWeek = WEEK.Fri; }
-  return BuildStatsData(weekNumber, dayOfWeek, year, monthIdx);
-}
 
 //////// Global state ////////
 const rawDate = new Date();
+var ss;
 var sheet;
 var cheatSheet;
 
 
 /**
  * Builds the full page data object for the HTML template.
- * Handles sheet setup, weekend detection, and office day writes.
+ * Serves from cache when valid; falls through to sheet otherwise.
  *
  * @param {string} key 'Office' or 'Home'
- * @returns {Object} DATA contract with status, date, time, rings, days, calendar, charts.
- *   Returns { status: 'fatal', errorMessage } on setup failure.
+ * @returns {Object} full DATA contract, or { status: 'fatal', errorMessage } on failure.
  */
 function BuildPageData(key) {
   const data = {};
 
+  // ---- Cache check (no sheet calls on hit) ----
+  const cached = readCache();
+  if (isCacheValid(cached, key)) {
+    console.log('Cache hit for', key, '— skipping sheet reads');
+    return buildPageDataFromCache(cached);
+  }
+
   // ---- Setup ----
   try {
-    sheet = GetCurrentSheet();
+    sheet           = GetCurrentSheet();
     data.weekNumber = GetCurrentISOWeek();
-  } catch (e) {
+  } catch(e) {
     console.log('Setup error:', e.message);
     return { status: 'fatal', errorMessage: e.message };
   }
+
+  const bundle   = LoadSheetBundle(sheet, ss, rawDate.getFullYear(), data.weekNumber);
+  cheatSheet     = ParseCheatSheet(bundle);
 
   const year     = rawDate.getFullYear();
   const monthIdx = rawDate.getMonth();
@@ -53,51 +51,81 @@ function BuildPageData(key) {
   data.time = Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "h:mm a");
 
   // ---- Weekend check ----
-  var dayOfWeek;
+  let dayOfWeek;
   try {
     dayOfWeek = GetCurrentDayOfWeek();
-  } catch (e) {
+  } catch(e) {
     console.log('Weekend:', e.message);
-    data.status        = 'weekend';
-    data.statusLabel   = 'Weekend';
-    data.alreadyLogged = false;
-    Object.assign(data, BuildStatsData(data.weekNumber, WEEK.Fri, year, monthIdx));
+    data.status               = 'weekend';
+    data.statusLabel          = 'Weekend';
+    data.alreadyLogged        = false;
+    data.alreadyLoggedMessage = '';
+    Object.assign(data, BuildStatsData(bundle, data.weekNumber, WEEK.Fri, year, monthIdx));
+    writeCache(buildCacheEntry(data));
     return data;
   }
 
   // ---- Status resolution ----
-  data.alreadyLogged = false;
-
   if (key === 'Office') {
-    const currentDayCell = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
-    try {
-      AssertDayCellIsEmpty(currentDayCell);
-      SetCurrentDayCellValue(currentDayCell, Object.keys(cheatSheet).find(k => cheatSheet[k] === 'Office'));
-      console.log('Marked as Office:', currentDayCell);
-    } catch (e) {
-      console.log('Already logged:', e.message);
-      data.alreadyLogged = true;
-    }
-    data.status      = 'office';
-    data.statusLabel = 'Office Day';
-  } else {
-    const currentDayCell = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
-    const cellValue      = sheet.getRange(currentDayCell).getValue();
-    if (cellValue) {
-      const loggedType   = cheatSheet[NormalizeCellKey(cellValue)] || 'Home';
-      data.status        = CellTypeFromValue(cellValue);
-      data.statusLabel   = loggedType === 'Office' ? 'Office Day' : loggedType;
-      data.alreadyLogged = true;
+    const cellAddress = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
+    if (!GetDayCellValue(bundle, dayOfWeek, data.weekNumber)) {
+      const officeCode = Object.keys(cheatSheet).find(k => cheatSheet[k] === 'Office');
+      SetCurrentDayCellValue(cellAddress, officeCode);
+      console.log('Marked as Office:', cellAddress);
     } else {
-      data.status      = 'home';
-      data.statusLabel = 'Home Day';
+      console.log('Already logged:', cellAddress);
     }
+    data.alreadyLogged        = true;
+    data.alreadyLoggedMessage = ALREADY_LOGGED_MSGS.office || 'Already logged';
+    data.status               = 'office';
+    data.statusLabel          = 'Office Day';
+  } else {
+    const cellValue = GetDayCellValue(bundle, dayOfWeek, data.weekNumber);
+    Object.assign(data, _resolveStatusFromCell(cellValue));
     console.log('Home day, no write. Cell:', cellValue || 'empty');
   }
 
-  const _alreadyLoggedMsgs = { vacation: 'Enjoy your time off!', holiday: 'Enjoy your long weekend!', oncalloff: 'Enjoy your time off!' };
-  data.alreadyLoggedMessage = data.alreadyLogged ? (_alreadyLoggedMsgs[data.status] || 'Already logged') : '';
-
-  Object.assign(data, BuildStatsData(data.weekNumber, dayOfWeek, year, monthIdx));
+  Object.assign(data, BuildStatsData(bundle, data.weekNumber, dayOfWeek, year, monthIdx));
+  writeCache(buildCacheEntry(data));
   return data;
+}
+
+/**
+ * Soft reload: always reads from sheet, determines status from live cell data,
+ * and writes a fully fresh cache entry. Never touches the existing cache for reads.
+ * Called by the client refresh button via google.script.run.
+ *
+ * @returns {{ rings, days, calendar, charts }}
+ */
+function GetFreshData() {
+  sheet = GetCurrentSheet();
+  const weekNumber = GetCurrentISOWeek();
+  const bundle     = LoadSheetBundle(sheet, ss, rawDate.getFullYear(), weekNumber);
+  cheatSheet       = ParseCheatSheet(bundle);
+  const year       = rawDate.getFullYear();
+  const monthIdx   = rawDate.getMonth();
+
+  let dayOfWeek;
+  let isWeekend = false;
+  try {
+    dayOfWeek = GetCurrentDayOfWeek();
+  } catch(e) {
+    dayOfWeek = WEEK.Fri;
+    isWeekend = true;
+  }
+
+  const stats = BuildStatsData(bundle, weekNumber, dayOfWeek, year, monthIdx);
+
+  // Determine current status fresh from the bundle — never from the old cache
+  let status, statusLabel, alreadyLogged, alreadyLoggedMessage;
+
+  if (isWeekend) {
+    status = 'weekend'; statusLabel = 'Weekend'; alreadyLogged = false; alreadyLoggedMessage = '';
+  } else {
+    const cellValue = GetDayCellValue(bundle, dayOfWeek, weekNumber);
+    ({ status, statusLabel, alreadyLogged, alreadyLoggedMessage } = _resolveStatusFromCell(cellValue));
+  }
+
+  writeCache(buildCacheEntry({ alreadyLogged, status, statusLabel, alreadyLoggedMessage, ...stats }));
+  return stats;
 }

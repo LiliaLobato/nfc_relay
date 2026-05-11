@@ -59,6 +59,18 @@ function GetTokens() {
 }
 
 /**
+ * Evaluates a template and wraps it with standard title and frame options.
+ *
+ * @param {GoogleAppsScript.HTML.HtmlTemplate} template
+ * @returns {GoogleAppsScript.HTML.HtmlOutput}
+ */
+function _renderPage(template) {
+  return template.evaluate()
+    .setTitle('Office Day Tracker')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
  * Apps Script HTTP GET handler.
  * Validates the token, picks theme and dark mode, and returns the rendered page.
  * Renders the unauth card on token mismatch and the fatal card on any uncaught error.
@@ -89,9 +101,7 @@ function doGet(e) {
     _tplData = { status: 'unauth' };
     template.data = _tplData;
     console.log('doGet: unauth — key:', key);
-    return template.evaluate()
-      .setTitle('Office Day Tracker')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    return _renderPage(template);
   }
 
   try {
@@ -103,7 +113,5 @@ function doGet(e) {
   _tplData = template.data;
   console.log('doGet: status =', _tplData.status, JSON.stringify(_tplData));
 
-  return template.evaluate()
-    .setTitle('Office Day Tracker')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return _renderPage(template);
 }

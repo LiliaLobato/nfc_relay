@@ -1,29 +1,32 @@
 /**
  * DataAssembler.js
- * Creates one full stats object: reads sheet data, computes intermediates,
- * and delegates to BuildRingsData, BuildDaysData, BuildCalendarData, BuildChartsData.
+ * Creates one full stats object from a pre-fetched SheetBundle.
+ * No sheet API calls — all reads are array lookups via SheetHelper parsers.
  */
 
 
 /**
+ * @param {SheetBundle} bundle pre-fetched sheet data
  * @param {number} weekNumber current ISO week
  * @param {number} dayOfWeek ISO day index (WEEK.Mon=0 .. WEEK.Fri=4); pass WEEK.Fri on weekends
  * @param {number} year current calendar year
  * @param {number} monthIdx zero-based current month index
  * @returns {{ rings: Object, days: Object, calendar: Object, charts: Object }}
  */
-function BuildStatsData(weekNumber, dayOfWeek, year, monthIdx) {
-  const stats             = GetBeltAverages(weekNumber);
-  const isFridayOrWeekend = dayOfWeek === WEEK.Fri;
-  const baseWW            = isFridayOrWeekend ? weekNumber + 1 : weekNumber;
-  const needed            = GetDaysNeeded(baseWW);
+function BuildStatsData(bundle, weekNumber, dayOfWeek, year, monthIdx) {
+  const beltData          = GetBeltAveragesRange(bundle, 1, weekNumber);
+  const beltRow           = beltData[weekNumber - 1];
+  const stats             = { best10of12: beltRow[0], best8of12: beltRow[1], best8of10: beltRow[2] };
+  const shiftPillsForward = dayOfWeek === WEEK.Fri;
+  const baseWW            = shiftPillsForward ? weekNumber + 1 : weekNumber;
+  const needed            = GetDaysNeeded(bundle, baseWW);
 
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
   const calFirst    = GetISOWeekForDate(new Date(year, monthIdx, 1));
   const calLast     = GetISOWeekForDate(new Date(year, monthIdx, daysInMonth));
 
   // Extend range to cover both pill weeks (baseWW and baseWW+1)
-  const allWeekData = GetDailyDataRange(1, Math.max(calLast, baseWW + 1));
+  const allWeekData = GetDailyDataRange(bundle, 1, Math.max(calLast, baseWW + 1));
 
   // WW1 may start in Dec of the prior year (e.g. Dec 29-31).
   // startColWW1 is the column index of Jan 1 within WW1 (0=Mon, 4=Fri).
@@ -31,10 +34,9 @@ function BuildStatsData(weekNumber, dayOfWeek, year, monthIdx) {
   const startColWW1 = jan1Weekday <= WEEK.Fri ? jan1Weekday : 0;
 
   const ytd           = CountYTDStats(allWeekData, weekNumber, startColWW1, dayOfWeek);
-  const weekGoal      = GetWeekGoal();
-  const monthly       = GetMonthlyBreakdown();
-  const beltData      = GetBeltAveragesRange(1, weekNumber);
-  const priorYearData = GetPriorYearData(year);
+  const weekGoal      = GetWeekGoal(bundle);
+  const monthly       = GetMonthlyBreakdown(bundle);
+  const priorYearData = GetPriorYearData(bundle);
 
   // Subtract Dec days in WW1 to get true calendar-year elapsed days.
   const workDaysElapsedYTD     = (weekNumber - 1) * 5 + dayOfWeek + 1 - startColWW1;
@@ -42,23 +44,19 @@ function BuildStatsData(weekNumber, dayOfWeek, year, monthIdx) {
   const workDaysInCurrentMonth = monthly[monthIdx][MONTHLY.workDays] || 0;
   const monthlyGoal            = monthly[monthIdx][MONTHLY.goal]     || 0;
 
-  let goalTarget = 0, annualTarget = 0;
+  let goalTarget = 0, annualTarget = 0, ytdAvgSum = 0, ytdAvgCount = 0;
   for (let m = 0; m < 12; m++) {
     const g = monthly[m][MONTHLY.goal] || 0;
     annualTarget += g;
-    if (m <= monthIdx) goalTarget += g;
+    if (m <= monthIdx) {
+      goalTarget += g;
+      const v = monthly[m][MONTHLY.avg];
+      if (v) { ytdAvgSum += v; ytdAvgCount++; }
+    }
   }
+  const yearToDateAverage = ytdAvgCount > 0 ? round1dp(ytdAvgSum / ytdAvgCount) : null;
 
-  const weeksRemaining = Math.max(1, 52 - weekNumber);
-
-  const ytdAvgVals = [];
-  for (let m = 0; m <= monthIdx; m++) {
-    const v = monthly[m][MONTHLY.avg];
-    if (v) ytdAvgVals.push(v);
-  }
-  const yearToDateAverage = ytdAvgVals.length > 0
-    ? Math.round(ytdAvgVals.reduce((a, b) => a + b, 0) / ytdAvgVals.length * 10) / 10
-    : null;
+  const weeksRemaining = Math.max(1, GetISOWeeksInYear(year) - weekNumber);
 
   // Count absences only for the two weeks shown in the pills
   const _absenceCount = (ww, type) => {
@@ -72,7 +70,7 @@ function BuildStatsData(weekNumber, dayOfWeek, year, monthIdx) {
   };
 
   const rings    = BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage, monthlyGoal);
-  const days     = BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx, isFridayOrWeekend, pillAbsence);
+  const days     = BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx, year, shiftPillsForward, pillAbsence);
   const calendar = BuildCalendarData(allWeekData, year, monthIdx, calFirst, calLast);
   const charts   = BuildChartsData(allWeekData, weekNumber, dayOfWeek, weekGoal, beltData, monthly, year, monthIdx, startColWW1, priorYearData);
 

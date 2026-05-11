@@ -1,34 +1,87 @@
 /**
  * SheetHelper.js
- * All Google Sheets read operations.
- * Each function maps directly to a getRange/getValue call.
- * Sheet layout constants (DATALOCATION, MONTHLY) live in GlobalConstants.js.
+ * Sheet connection, bulk data loading, key normalisation, and cheat-sheet parsing.
+ *
+ * Two-phase design:
+ *   1. GetCurrentSheet()    — resolves the Sheet object, sets globals ss/sheet.
+ *   2. LoadSheetBundle(...) — 2 getValues() calls for current year; +2 for prior year only when
+ *                            the chart lookback window reaches it (weeks ≤ CHART_LOOKBACK.yearWeeks).
+ *
+ * Domain-specific bundle readers live in their respective helper files:
+ *   CellHelper   — CellTypeFromValue
+ *   WeekHelper   — GetWeekGoal, GetDailyDataRange
+ *   ChartsHelper — GetBeltAveragesRange, GetDaysNeeded
+ *   MonthHelper  — GetMonthlyBreakdown
+ *   YearHelper   — GetPriorYearData
+ *
+ * SheetBundle = {
+ *   main:    Array[][]   DATALOCATION.megaRange (D7:N64)
+ *   monthly: Array[][]   DATALOCATION.monthlyBreakdownDataRange (R6:AV20)
+ *   prior:   { main: Array[][], monthly: Array[][] } | null
+ * }
  */
 
+
 /**
- * Gets the current year's sheet and initialises the global cheatSheet.
- * Sets the global `sheet` variable as a side effect.
+ * Resolves the current year's Sheet object and sets the globals ss and sheet.
  *
  * @returns {GoogleAppsScript.Spreadsheet.Sheet}
  * @throws {Error} if no sheet exists for the current year
  */
-function GetCurrentSheet(){
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = String(rawDate.getFullYear());
-    sheet = ss.getSheetByName(sheetName);
-
-    if (!sheet) {
-      throw new Error(`Sheet ${sheetName} not found`);
-    }
-
-    GetCheatSheet();
-
-    return sheet;
+function GetCurrentSheet() {
+  ss    = SpreadsheetApp.getActiveSpreadsheet();
+  sheet = ss.getSheetByName(String(rawDate.getFullYear()));
+  if (!sheet) throw new Error(`Sheet ${rawDate.getFullYear()} not found`);
+  return sheet;
 }
 
+
 /**
- * Normalises a raw cell value to a consistent cheatSheet key.
- * All keys are stored and looked up in upper-case so sheet casing never matters.
+ * Fetches all sheet data in two getValues() calls per sheet and returns a SheetBundle.
+ * Pure fetch — no parsing, no side effects beyond the API calls.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet current year sheet
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss active spreadsheet
+ * @param {number} year current calendar year
+ * @param {number} weekNumber current ISO week number
+ * @returns {SheetBundle}
+ */
+function LoadSheetBundle(sheet, ss, year, weekNumber) {
+  const main    = sheet.getRange(DATALOCATION.megaRange).getValues();
+  const monthly = sheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues();
+
+  // Prior year data is only needed while the year-chart lookback window reaches back into it.
+  // After week CHART_LOOKBACK.yearWeeks both chart windows fit entirely in the current year.
+  let prior = null;
+  if (weekNumber <= CHART_LOOKBACK.yearWeeks) {
+    const priorSheet = ss.getSheetByName(String(year - 1));
+    if (priorSheet) {
+      prior = {
+        main:        priorSheet.getRange(DATALOCATION.priorMegaRange).getValues(),
+        monthly:     priorSheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues(),
+        weeksInYear: GetISOWeeksInYear(year - 1),
+      };
+    }
+  }
+
+  return { main, monthly, prior };
+}
+
+
+/**
+ * Returns the 0-based row index within the mega range for a given ISO week number.
+ * WW1 is at sheet row 13 (index 6); each subsequent week adds one row.
+ *
+ * @param {number} weekNumber ISO week number (1-based)
+ * @returns {number}
+ */
+function weekRowIndex(weekNumber) {
+  return weekNumber + MEGARANGE.ww1SheetRow - MEGARANGE.firstSheetRow - 1;
+}
+
+
+/**
+ * Normalises a raw cell value to a consistent cheatSheet key (upper-case).
  *
  * @param {*} value raw cell value
  * @returns {string}
@@ -37,130 +90,22 @@ function NormalizeCellKey(value) {
   return String(value).toUpperCase();
 }
 
-/**
- * Reads the code to label mapping into the global cheatSheet.
- */
-function GetCheatSheet(){
-  const rawCheatSheet = sheet.getRange(DATALOCATION.cheatSheetRange).getValues();
-
-  cheatSheet = {};
-  rawCheatSheet.forEach(row => {
-    const key   = NormalizeCellKey(row[1]);
-    const value = row[0];
-    if (row[1] && value) cheatSheet[key] = value;
-  });
-}
 
 /**
- * Maps a raw cell value to a CSS type string via cheatSheet.
- * Lowercases the label and strips spaces.
+ * Parses the code-to-label cheat sheet from a bundle and returns it as a plain object.
+ * Does not set the global cheatSheet — caller is responsible for assignment.
  *
- * NOTE: The JS layer is not fully agnostic. CSS class names must match the label.
- * Adding a new day type requires updating the sheet and HTML/CSS.
- * Labels must be alphanumeric only (spaces are stripped, hyphens would break the match).
- *
- * @param {*} value raw cell value from getValues()
- * @returns {string} CSS class name for that cell, or 'home' if no match found
+ * @param {SheetBundle} bundle
+ * @returns {Object.<string, string>} normalised-code → label map
  */
-function CellTypeFromValue(value) {
-  if (!value && value !== 0) return 'home';
-  const label = cheatSheet[NormalizeCellKey(value)];
-  if (!label) return 'home';
-  return label.toLowerCase().replace(/\s+/g, '');
+function ParseCheatSheet(bundle) {
+  const result = {};
+  for (let i = 0; i < MEGARANGE.cheatSheetRows; i++) {
+    const code  = bundle.main[i][MEGARANGE.colCheatCode];
+    const label = bundle.main[i][MEGARANGE.colCheatLabel];
+    if (code && label) result[NormalizeCellKey(code)] = label;
+  }
+  return result;
 }
 
-/**
- * Gets raw daily cell values for a range of ISO weeks.
- * Each row is [Mon, Tue, Wed, Thu, Fri] for that week.
- *
- * @param {number} startWeek first ISO week (1-based)
- * @param {number} endWeek last ISO week (1-based)
- * @returns {Array[][]} result[i] is WW(startWeek+i) daily values
- */
-function GetDailyDataRange(startWeek, endWeek) {
-  const startRow = startWeek + wwRowOffset;
-  const endRow   = endWeek   + wwRowOffset;
-  return sheet.getRange(`${DATALOCATION.weekDataStartCol}${startRow}:${DATALOCATION.weekDataEndCol}${endRow}`).getValues();
-}
 
-/**
- * Gets BELT average values for a single ISO week.
- * Calculated by sheet formulas.
- *
- * @param {number} workWeek ISO week number
- * @returns {{ best10of12: number, best8of12: number, best8of10: number }}
- */
-function GetBeltAverages(workWeek) {
-  const row = workWeek + wwRowOffset;
-  return {
-    best10of12: sheet.getRange(DATALOCATION.best10of12Col + row).getValue(),
-    best8of12:  sheet.getRange(DATALOCATION.best8of12Col + row).getValue(),
-    best8of10:  sheet.getRange(DATALOCATION.best8of10Col + row).getValue()
-  };
-}
-
-/**
- * Gets BELT average values for a range of ISO weeks.
- *
- * @param {number} startWeek first ISO week
- * @param {number} endWeek last ISO week
- * @returns {Array[][]} result[i] is BELT values for WW(startWeek+i)
- */
-function GetBeltAveragesRange(startWeek, endWeek) {
-  const startRow = startWeek + wwRowOffset;
-  const endRow   = endWeek   + wwRowOffset;
-  return sheet.getRange(`${DATALOCATION.best10of12Col}${startRow}:${DATALOCATION.best8of10Col}${endRow}`).getValues();
-}
-
-/**
- * Gets the weekly office day goal from cell E10.
- *
- * @returns {number}
- */
-function GetWeekGoal() {
-  return sheet.getRange(DATALOCATION.weekGoalCell).getValue();
-}
-
-/**
- * Gets raw data arrays from the prior year sheet for chart continuity.
- * Returns null if no prior year sheet exists.
- *
- * @param {number} year current year; reads the (year-1) sheet
- * @returns {{ weekData: Array[][], beltData: Array[][], monthly: Array[][] }|null}
- */
-function GetPriorYearData(year) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const priorSheet = ss.getSheetByName(String(year - 1));
-  if (!priorSheet) return null;
-  return {
-    weekData: priorSheet.getRange(DATALOCATION.weekDataRange).getValues(),
-    beltData: priorSheet.getRange(DATALOCATION.beltDataRange).getValues(),
-    monthly:  priorSheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues().slice(3),
-  };
-}
-
-/**
- * Gets the monthly breakdown data as a 12-element array.
- * Index 0 is January, index 11 is December.
- * Use MONTHLY constants to access individual columns within each row.
- *
- * @returns {Array[][]} 12 rows of monthly stats
- */
-function GetMonthlyBreakdown() {
-  const values = sheet.getRange(DATALOCATION.monthlyBreakdownDataRange).getValues();
-  return values.slice(3);
-}
-
-/**
- * Gets the number of office days still needed this week and next.
- *
- * @param {number} workWeek current ISO week number
- * @returns {{ thisWeek: number, nextWeek: number }}
- */
-function GetDaysNeeded(workWeek) {
-  const row = workWeek + wwRowOffset;
-  return {
-    thisWeek: sheet.getRange(DATALOCATION.daysNeededCol + row).getValue(),
-    nextWeek: sheet.getRange(DATALOCATION.daysNeededCol + (row + 1)).getValue(),
-  };
-}

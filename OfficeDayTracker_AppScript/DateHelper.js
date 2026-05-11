@@ -22,6 +22,17 @@ function GetMondayOfISOWeek(ww, yr) {
 }
 
 /**
+ * Returns the number of ISO weeks in a given year (52 or 53).
+ * Dec 28 is always in the last ISO week of any year.
+ *
+ * @param {number} year
+ * @returns {number} 52 or 53
+ */
+function GetISOWeeksInYear(year) {
+  return GetISOWeekForDate(new Date(year, 11, 28));
+}
+
+/**
  * Returns the ISO weekday index for today (WEEK.Mon=0 .. WEEK.Fri=4).
  * Throws on weekends as a control flow signal;
  * caught by BuildPageData to trigger the weekend view.
@@ -49,7 +60,7 @@ function GetISOWeekForDate(date) {
   target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
   
   const week1 = new Date(target.getFullYear(), 0, 4);
-  return 1 + Math.round(((target - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  return 1 + Math.round(((target - week1) / MS_PER_DAY - 3 + (week1.getDay() + 6) % 7) / 7);
 }
 
 /**
@@ -60,7 +71,7 @@ function GetISOWeekForDate(date) {
  */
 function GetCurrentISOWeek(){
   const workWeek = GetISOWeekForDate(rawDate);
-  if (workWeek < 1 || workWeek > 53 || !workWeek) {
+  if (isNaN(workWeek) || workWeek < 1 || workWeek > 53) {
     throw new Error('Calculated work week '+ workWeek + ' for date' +
     Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "dd/MMM/yyyy") +
     ' is out of range 1-53');

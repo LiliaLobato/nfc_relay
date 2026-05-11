@@ -31,7 +31,6 @@ function GetTryToken(key) {
  * Writes today's cell; run on a weekday. Verify the full DATA object shape in the log.
  */
 function TestBuildOffice() {
-  sheet = GetCurrentSheet();
   console.log(JSON.stringify(BuildPageData('Office')));
 }
 
@@ -40,7 +39,6 @@ function TestBuildOffice() {
  * No write to sheet. Confirm calendar.types[today] and heatmap current week show 'home'.
  */
 function TestBuildHome() {
-  sheet = GetCurrentSheet();
   console.log(JSON.stringify(BuildPageData('Home')));
 }
 
@@ -83,6 +81,41 @@ function TestFatal() {
  * Restore rawDate = new Date() and push again before any real use.
  */
 function TestWeekend() {
-  sheet = GetCurrentSheet();
   console.log(JSON.stringify(BuildPageData('Home')));
+}
+
+
+/**
+ * Test 6 — Full cache lifecycle.
+ * Full cache lifecycle: empty → write → validate → read → refresh → validate.
+ */
+function TestCache() {
+  PropertiesService.getScriptProperties().deleteProperty(CACHE_PROPERTY_KEY);
+
+  // Empty — should be null
+  console.log('Empty read:', readCache() === null ? '✅ null' : '❌ expected null');
+
+  // Write
+  const data = {
+    alreadyLogged: true, status: 'office',
+    statusLabel: 'Office Day', alreadyLoggedMessage: 'Already logged',
+    rings: {}, days: {}, calendar: {}, charts: {},
+  };
+  writeCache(buildCacheEntry(data));
+
+  // Validate
+  const cached = readCache();
+  console.log('After write — valid for Office:', isCacheValid(cached, 'Office') ? '✅' : '❌');
+  console.log('After write — status:', cached.status === 'office' ? '✅ office' : '❌ ' + cached.status);
+
+  // Refresh (overwrite with new data)
+  const refreshed = Object.assign({}, data, { alreadyLoggedMessage: 'Refreshed' });
+  writeCache(buildCacheEntry(refreshed));
+
+  // Validate after refresh
+  const after = readCache();
+  console.log('After refresh — still valid:', isCacheValid(after, 'Office') ? '✅' : '❌');
+  console.log('After refresh — message updated:', after.alreadyLoggedMessage === 'Refreshed' ? '✅' : '❌');
+
+  PropertiesService.getScriptProperties().deleteProperty(CACHE_PROPERTY_KEY);
 }

@@ -19,12 +19,28 @@
     btn.textContent = isDark ? '☀️' : '🌙';
     const newRingFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
     const newRingBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+
+    // Ring doughnut charts
     ringCharts.forEach((chart, i) => {
       if (chart) { chart.data.datasets[0].backgroundColor = [newRingFill[i], newRingBg[i]]; chart.update('none'); }
     });
-    const newColors = isDark ? ytdColorsDark : ytdColorsLight;
-    const c = charts['ytd-o'];
-    if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
+
+    // YTD split donut
+    const ytdChart = charts['ytd-o'];
+    if (ytdChart) { ytdChart.data.datasets[0].backgroundColor = isDark ? ytdColorsDark : ytdColorsLight; ytdChart.update('none'); }
+
+    // Line chart — ring vars differ between modes
+    const lineChart = charts['line-o'];
+    if (lineChart) {
+      lineChart.data.datasets[0].borderColor = newRingFill[0];
+      lineChart.data.datasets[1].borderColor = newRingFill[1];
+      lineChart.data.datasets[2].borderColor = newRingFill[2];
+      lineChart.update('none');
+    }
+
+    // Pace chart — ring var differs between modes
+    const paceChart = charts['pace-o'];
+    if (paceChart) { paceChart.data.datasets[0].borderColor = newRingFill[0]; paceChart.update('none'); }
   }
 
   // ---- Calendar ----
@@ -94,19 +110,6 @@
       }
     });
   }
-  function makeRingPct(id, pct, i) {
-    pct = Math.min(pct, 1);
-    ringCharts[i] = new Chart(document.getElementById(id), {
-      type: 'doughnut',
-      data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
-      options: {
-        cutout:'72%', responsive:false,
-        plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-        animation:{ duration:2000, easing:'easeOutQuart' }
-      }
-    });
-  }
-
   makeRing('r-o-1', DATA.rings.best10of12,        0);
   makeRing('r-o-2', DATA.rings.best8of12,         1);
   makeRing('r-o-3', DATA.rings.best8of10,         2);
@@ -115,7 +118,7 @@
   // ---- Current date references ----
   const _today = new Date();
   const _todayDow = _today.getDay();
-  const TODAY_DOW_IDX = _todayDow === 0 ? -1 : _todayDow - 1;
+  const TODAY_DOW_IDX = (_todayDow >= 1 && _todayDow <= 5) ? _todayDow - 1 : -1;
   const DOW_LABELS = ['Mon','Tue','Wed','Thu','Fri'];
 
   // ---- Chart period data ----
@@ -142,7 +145,7 @@
   const xTickColor = ctx => {
     const target = xHiLabel[ctx.chart.canvas.id];
     const label = ctx.label ?? ctx.chart.data.labels?.[ctx.index];
-    if (target && label === target) return ringFill[0];
+    if (target && label === target) return cv('--ring1');
     if (label && label.endsWith('/25')) return chartDimPoint;
     return 'rgba(102,102,102,1)';
   };
@@ -417,11 +420,12 @@
   }
 
   function makeYtdChart(id) {
+    const initialColors = document.body.classList.contains('dark') ? ytdColorsDark : ytdColorsLight;
     return new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: {
         labels: ytdLabels,
-        datasets: [{ data: ytdToArray(ytdByPeriod.month), backgroundColor: ytdColorsLight, borderWidth: 0 }]
+        datasets: [{ data: ytdToArray(ytdByPeriod.month), backgroundColor: initialColors, borderWidth: 0 }]
       },
       options: {
         cutout: '50%',
@@ -579,10 +583,6 @@
     charts['line-o'] = makeLineChart('line-o', currentPeriod);
     charts['pace-o'] = makePaceChart('pace-o', currentPeriod);
     charts['ytd-o']  = makeYtdChart('ytd-o');
-    if (document.body.classList.contains('dark')) {
-      charts['ytd-o'].data.datasets[0].backgroundColor = ytdColorsDark;
-      charts['ytd-o'].update('none');
-    }
 
     // Refresh YTD row and title
     const ytdRow = document.querySelector('#cy-o .ytd-row');

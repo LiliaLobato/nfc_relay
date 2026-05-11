@@ -14,9 +14,9 @@
  * @returns {*|null}
  */
 function _calCellValue(date, allWeekData) {
-  var colIdx = (date.getDay() + 6) % 7;
+  const colIdx = (date.getDay() + 6) % 7;
   if (colIdx > WEEK.Fri) return null;
-  var wkIdx = GetISOWeekForDate(date) - 1;
+  const wkIdx = GetISOWeekForDate(date) - 1;
   return allWeekData[wkIdx] !== undefined ? allWeekData[wkIdx][colIdx] : null;
 }
 
@@ -51,49 +51,49 @@ function _calDayType(value, date, todayDate) {
  * }}
  */
 function BuildCalendarData(allWeekData, year, monthIdx, calFirst, calLast) {
-  var monthName   = MONTH_NAMES[monthIdx];
-  var daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-  var todayDate   = new Date(year, monthIdx, rawDate.getDate());
+  const monthName   = MONTH_NAMES[monthIdx];
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const todayDate   = new Date(year, monthIdx, rawDate.getDate());
   // null on weekends so the calendar does not highlight a weekend date as current
-  var today = (rawDate.getDay() + 6) % 7 <= WEEK.Fri ? rawDate.getDate() : null;
+  const today = (rawDate.getDay() + 6) % 7 <= WEEK.Fri ? rawDate.getDate() : null;
 
   // Current month
-  var types = {};
-  for (var d = 1; d <= daysInMonth; d++) {
-    var date   = new Date(year, monthIdx, d);
-    var isoDay = (date.getDay() + 6) % 7;
+  const types = {};
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date   = new Date(year, monthIdx, d);
+    const isoDay = (date.getDay() + 6) % 7;
     types[d] = isoDay > WEEK.Fri
       ? 'weekend-day'
       : _calDayType(_calCellValue(date, allWeekData), date, todayDate);
   }
 
   // Leading days from the previous month (fills the first calendar row)
-  var firstDayMon = (new Date(year, monthIdx, 1).getDay() + 6) % 7;
-  var prevMonth   = (monthIdx + 11) % 12;
-  var prevYear    = monthIdx > 0 ? year : year - 1;
-  var daysInPrev  = new Date(prevYear, prevMonth + 1, 0).getDate();
-  var prevDays    = [];
-  for (var d = daysInPrev - firstDayMon + 1; d <= daysInPrev; d++) {
-    var date   = new Date(prevYear, prevMonth, d);
-    var isoDay = (date.getDay() + 6) % 7;
+  const firstDayMon = (new Date(year, monthIdx, 1).getDay() + 6) % 7;
+  const prevMonth   = (monthIdx + 11) % 12;
+  const prevYear    = monthIdx > 0 ? year : year - 1;
+  const daysInPrev  = new Date(prevYear, prevMonth + 1, 0).getDate();
+  const prevDays    = [];
+  for (let prevD = daysInPrev - firstDayMon + 1; prevD <= daysInPrev; prevD++) {
+    const date   = new Date(prevYear, prevMonth, prevD);
+    const isoDay = (date.getDay() + 6) % 7;
     if (isoDay > WEEK.Fri) {
-      prevDays.push({ day: d, type: 'weekend-day' });
+      prevDays.push({ day: prevD, type: 'weekend-day' });
     } else {
-      var value = _calCellValue(date, allWeekData);
-      prevDays.push({ day: d, type: value !== null ? _calDayType(value, date, todayDate) : 'home' });
+      const value = _calCellValue(date, allWeekData);
+      prevDays.push({ day: prevD, type: value !== null ? _calDayType(value, date, todayDate) : 'home' });
     }
   }
 
   // Trailing days from the next month (fills the last calendar row)
-  var lastDayMon = (new Date(year, monthIdx, daysInMonth).getDay() + 6) % 7;
-  var trailCount = lastDayMon < WEEK.Sun ? WEEK.Sun - lastDayMon : 0;
-  var nextMonth  = (monthIdx + 1) % 12;
-  var nextYear   = monthIdx < 11 ? year : year + 1;
-  var nextDays   = [];
-  for (var d = 1; d <= trailCount; d++) {
-    var date   = new Date(nextYear, nextMonth, d);
-    var isoDay = (date.getDay() + 6) % 7;
-    nextDays.push({ day: d, type: isoDay > WEEK.Fri ? 'weekend-day' : 'future' });
+  const lastDayMon = (new Date(year, monthIdx, daysInMonth).getDay() + 6) % 7;
+  const trailCount = lastDayMon < WEEK.Sun ? WEEK.Sun - lastDayMon : 0;
+  const nextMonth  = (monthIdx + 1) % 12;
+  const nextYear   = monthIdx < 11 ? year : year + 1;
+  const nextDays   = [];
+  for (let nextD = 1; nextD <= trailCount; nextD++) {
+    const date   = new Date(nextYear, nextMonth, nextD);
+    const isoDay = (date.getDay() + 6) % 7;
+    nextDays.push({ day: nextD, type: isoDay > WEEK.Fri ? 'weekend-day' : 'future' });
   }
 
   return {

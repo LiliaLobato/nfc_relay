@@ -28,7 +28,7 @@ function _chartDayLabel(d, year) {
  */
 function _chartWwLabel(ww, year) {
   return ww < 1
-    ? `WW${ww + 52}/${String(year - 1).slice(2)}`
+    ? `WW${ww + GetISOWeeksInYear(year - 1)}/${String(year - 1).slice(2)}`
     : `WW${ww}`;
 }
 
@@ -55,7 +55,7 @@ function _chartMonthLabel(mIdx, yr, year) {
  * @returns {Array|null}
  */
 function _getChartWeekRow(ww, allWeekData, priorYearData) {
-  if (ww < 1) return priorYearData ? (priorYearData.weekData[ww + 51] || null) : null;
+  if (ww < 1) return priorYearData ? (priorYearData.weekData[ww + priorYearData.weeksInYear - 1] || null) : null;
   return allWeekData[ww - 1] || null;
 }
 
@@ -69,7 +69,7 @@ function _getChartWeekRow(ww, allWeekData, priorYearData) {
  * @returns {Array|null} [best10of12, best8of12, best8of10] or null
  */
 function _getChartBeltRow(ww, beltData, priorYearData) {
-  if (ww < 1) return priorYearData ? (priorYearData.beltData[ww + 51] || null) : null;
+  if (ww < 1) return priorYearData ? (priorYearData.beltData[ww + priorYearData.weeksInYear - 1] || null) : null;
   return beltData[ww - 1] || null;
 }
 
@@ -110,8 +110,8 @@ function _officeCount(row) {
  */
 function _bestWorstReduce(items, valueFn) {
   let best = null, bestVal = -Infinity, worst = null, worstVal = Infinity;
-  items.forEach(item => {
-    const val = valueFn(item);
+  items.forEach((item, i) => {
+    const val = valueFn(item, i);
     if (val === null) return;
     if (val >= bestVal)  { bestVal  = val; best  = item; }
     if (val <= worstVal) { worstVal = val; worst = item; }
@@ -120,21 +120,8 @@ function _bestWorstReduce(items, valueFn) {
 }
 
 /**
- * Returns the heatmap type string for a cell.
- * Returns '' for future cells so the HTML renders them as blank.
- *
- * @param {*} cell raw cell value
- * @param {boolean} isFuture true if the cell date is after today
- * @returns {string}
- */
-function _chartHeatmapType(cell, isFuture) {
-  if (isFuture) return '';
-  return CellTypeFromValue(cell);
-}
-
-/**
  * Counts occurrences of each day type within an ISO week range.
- * Stops at todayColIdx on the current week; counts all days of every other week
+ * Stops at dayOfWeek on the current week; counts all days of every other week
  * including WW1 pre-Jan days (Dec 29-31) and prior-year weeks via priorYearData.
  *
  * @param {number} fromWW first ISO week to include (may be <= 0 for prior-year weeks)
@@ -143,12 +130,12 @@ function _chartHeatmapType(cell, isFuture) {
  * @returns {Object} map of CSS type string → count (e.g. { office: 5, home: 3, ... })
  */
 function _countChartTypesInRange(fromWW, toWW, context) {
-  const { allWeekData, weekNumber, todayColIdx, priorYearData } = context;
+  const { allWeekData, weekNumber, dayOfWeek, priorYearData } = context;
   const counts = {};
   for (let ww = fromWW; ww <= toWW; ww++) {
     const row = _getChartWeekRow(ww, allWeekData, priorYearData);
     if (!row) continue;
-    const endCol = (ww === weekNumber) ? todayColIdx : WEEK.Fri;
+    const endCol = (ww === weekNumber) ? dayOfWeek : WEEK.Fri;
     for (let col = 0; col <= endCol; col++) {
       const type = CellTypeFromValue(row[col]);
       counts[type] = (counts[type] || 0) + 1;
@@ -179,7 +166,7 @@ function BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, 
     best8of10:      stats.best8of10,
     lowestAverage,
     rawAverage:     effectiveDaysElapsed > 0
-                      ? Math.round((ytd.office || 0) / effectiveDaysElapsed * 5 * 10) / 10
+                      ? round1dp((ytd.office || 0) / effectiveDaysElapsed * 5)
                       : null,
     goalActual:     ytd.office || 0,
     goalTarget,
@@ -213,7 +200,6 @@ function BuildChartsData(allWeekData, weekNumber, dayOfWeek, weekGoal, beltData,
   const context = {
     allWeekData, weekNumber, dayOfWeek, weekGoal, beltData, monthly,
     year, monthIdx, startColWW1, priorYearData,
-    todayColIdx: dayOfWeek,
   };
 
   // Derive ordered type list from cheatSheet; home is the implicit catch-all
@@ -232,5 +218,38 @@ function BuildChartsData(allWeekData, weekNumber, dayOfWeek, weekGoal, beltData,
     month:   _buildChartMonthTab(context),
     year:    _buildChartYearTab(context),
     heatmap: _buildChartHeatmap(context),
+  };
+}
+
+/**
+ * Returns BELT average values for a range of ISO weeks.
+ * Each row is [best10of12, best8of12, best8of10].
+ *
+ * @param {SheetBundle} bundle
+ * @param {number} startWeek first ISO week (1-based)
+ * @param {number} endWeek last ISO week (1-based)
+ * @returns {Array[][]}
+ */
+function GetBeltAveragesRange(bundle, startWeek, endWeek) {
+  const start = weekRowIndex(startWeek);
+  const end   = weekRowIndex(endWeek) + 1;
+  return bundle.main
+    .slice(start, end)
+    .map(row => row.slice(MEGARANGE.colBeltStart, MEGARANGE.colBeltEnd));
+}
+
+
+/**
+ * Returns the number of office days still needed this week and next.
+ *
+ * @param {SheetBundle} bundle
+ * @param {number} workWeek current ISO week number
+ * @returns {{ thisWeek: number, nextWeek: number }}
+ */
+function GetDaysNeeded(bundle, workWeek) {
+  const i = weekRowIndex(workWeek);
+  return {
+    thisWeek: bundle.main[i][MEGARANGE.colDaysNeeded],
+    nextWeek: bundle.main[i + 1][MEGARANGE.colDaysNeeded],
   };
 }

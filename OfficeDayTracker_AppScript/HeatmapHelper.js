@@ -12,14 +12,14 @@
  * @returns {Object.<string, string[]>} heatmap data for the HTML template
  */
 function _buildChartHeatmap(context) {
-  const { allWeekData, weekNumber, todayColIdx } = context;
+  const { allWeekData, weekNumber, dayOfWeek } = context;
 
   const heatmap = {};
   for (let ww = 1; ww <= weekNumber; ww++) {
     const row = allWeekData[ww - 1];
     if (!row) continue;
     heatmap[`WW${ww}`] = row.map((cell, colIdx) =>
-      _chartHeatmapType(cell, ww === weekNumber && colIdx > todayColIdx)
+      (ww === weekNumber && colIdx > dayOfWeek) ? '' : CellTypeFromValue(cell)
     );
   }
   return heatmap;
