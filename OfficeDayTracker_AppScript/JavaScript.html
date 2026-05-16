@@ -595,6 +595,20 @@
     if (calEl) { calEl.innerHTML = ''; buildCalendar('cal-o'); }
     buildHeatmap('heatmap-o', hmDataByPeriod[currentPeriod]);
 
+    // Update title card status badge and already-logged banner
+    if (newStats.status) {
+      const badge = document.querySelector('.status-badge');
+      if (badge) {
+        badge.className = 'status-badge ' + newStats.status;
+        badge.textContent = newStats.statusLabel;
+      }
+      const banner = document.querySelector('.already-logged-banner');
+      if (banner) {
+        banner.className = 'already-logged-banner ' + (newStats.alreadyLogged ? 'true' : 'false') + ' ' + newStats.status;
+        banner.textContent = newStats.alreadyLoggedMessage || '';
+      }
+    }
+
     btn.classList.remove('loading');
   }
 

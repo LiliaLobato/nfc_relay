@@ -29,7 +29,7 @@ function BuildPageData(key) {
   const cached = readCache();
   if (isCacheValid(cached, key)) {
     console.log('Cache hit for', key, '— skipping sheet reads');
-    return buildPageDataFromCache(cached);
+    return buildPageDataFromCache(cached, key);
   }
 
   // ---- Setup ----
@@ -67,21 +67,28 @@ function BuildPageData(key) {
 
   // ---- Status resolution ----
   if (key === 'Office') {
-    const cellAddress = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
-    if (!GetDayCellValue(bundle, dayOfWeek, data.weekNumber)) {
+    const cellAddress    = CalculateCurrentDayCell(dayOfWeek, data.weekNumber);
+    const existingValue  = GetDayCellValue(bundle, dayOfWeek, data.weekNumber);
+    const wasAlreadyLogged = !!existingValue;
+    if (!wasAlreadyLogged) {
       const officeCode = Object.keys(cheatSheet).find(k => cheatSheet[k] === 'Office');
       SetCurrentDayCellValue(cellAddress, officeCode);
+      // Patch bundle in memory so calendar/stats see the write without a second sheet read
+      bundle.main[weekRowIndex(data.weekNumber)][dayOfWeek] = officeCode;
       console.log('Marked as Office:', cellAddress);
     } else {
       console.log('Already logged:', cellAddress);
     }
-    data.alreadyLogged        = true;
-    data.alreadyLoggedMessage = ALREADY_LOGGED_MSGS.office || 'Already logged';
+    data.alreadyLogged        = wasAlreadyLogged;
+    data.alreadyLoggedMessage = wasAlreadyLogged ? (ALREADY_LOGGED_MSGS.office || 'Already logged') : '';
     data.status               = 'office';
     data.statusLabel          = 'Office Day';
   } else {
     const cellValue = GetDayCellValue(bundle, dayOfWeek, data.weekNumber);
     Object.assign(data, _resolveStatusFromCell(cellValue));
+    // Home is read-only — alreadyLogged only applies when a write is attempted
+    data.alreadyLogged        = false;
+    data.alreadyLoggedMessage = '';
     console.log('Home day, no write. Cell:', cellValue || 'empty');
   }
 
@@ -127,5 +134,7 @@ function GetFreshData() {
   }
 
   writeCache(buildCacheEntry({ alreadyLogged, status, statusLabel, alreadyLoggedMessage, ...stats }));
-  return stats;
+  // Return status fields so applyRefresh can update the title card.
+  // alreadyLogged is always false here — the banner only fires on a write attempt at page load.
+  return { ...stats, status, statusLabel, alreadyLogged: false, alreadyLoggedMessage: '' };
 }

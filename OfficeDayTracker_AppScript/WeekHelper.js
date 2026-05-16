@@ -111,8 +111,13 @@ function _buildChartWeekTab(context) {
 
   const types20 = cells20.map(c => CellTypeFromValue(_cellAt(allWeekData, c.ww, c.col)));
 
-  const labels  = cells20.map(c => _chartDayLabel(c.date, year));
-  const barData = types20.map(t => t === 'office' ? 1 : 0);
+  const labels = cells20.map(c => _chartDayLabel(c.date, year));
+
+  // 5 values for Mon–Fri of the current week only; future days of the week stay 0
+  const currentWeekRow = allWeekData[weekNumber - 1] || [];
+  const barData = [WEEK.Mon, WEEK.Tue, WEEK.Wed, WEEK.Thu, WEEK.Fri].map(col =>
+    col <= dayOfWeek && CellTypeFromValue(currentWeekRow[col]) === 'office' ? 1 : 0
+  );
 
   const line1 = cells20.map(c => beltData[c.ww - 1] ? beltData[c.ww - 1][0] : null);
   const line2 = cells20.map(c => beltData[c.ww - 1] ? beltData[c.ww - 1][1] : null);

@@ -115,19 +115,22 @@ function buildCacheEntry(data) {
 /**
  * Reconstructs a full page data object from a valid cache entry.
  * date and time are always recomputed so they reflect the current moment.
+ * alreadyLogged is suppressed for the Home path — the banner only applies when a write is attempted.
  *
  * @param {Object} cached valid cache entry
+ * @param {string} key 'Office' | 'Home'
  * @returns {Object} page data object ready to return from BuildPageData
  */
-function buildPageDataFromCache(cached) {
+function buildPageDataFromCache(cached, key) {
+  const isOffice = key === 'Office';
   return {
     date:                 Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "EEEE, dd/MMM/yyyy"),
     time:                 Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "h:mm a"),
     weekNumber:           GetCurrentISOWeek(),
-    alreadyLogged:        cached.alreadyLogged,
+    alreadyLogged:        isOffice ? cached.alreadyLogged : false,
     status:               cached.status,
     statusLabel:          cached.statusLabel,
-    alreadyLoggedMessage: cached.alreadyLoggedMessage,
+    alreadyLoggedMessage: isOffice ? cached.alreadyLoggedMessage : '',
     rings:                cached.rings,
     days:                 cached.days,
     calendar:             cached.calendar,
