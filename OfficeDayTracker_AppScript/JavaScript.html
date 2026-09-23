@@ -68,6 +68,11 @@
       const type = types[d] || 'future';
       cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
       cell.textContent = d;
+      // Past/today weekdays of the current month are editable — backfill a missed tap.
+      if (type !== 'future' && type !== 'weekend-day') {
+        cell.classList.add('editable');
+        attachCalEdit(cell, calDateISO(d));
+      }
       el.appendChild(cell);
     }
     calNextDays.forEach(({ day, type }) => {
@@ -77,6 +82,103 @@
       el.appendChild(cell);
     });
   }
+
+  // ---- Calendar edit menu (backfill a missed tap) ----
+  // Type options, driven by the cheatSheet but ordered Office/Home first.
+  const _calTypeByKey = Object.fromEntries(DATA.charts.types.map(t => [t.type, t]));
+  const EDIT_TYPES = ['office','home','vacation','holiday','oncalloff']
+    .filter(k => _calTypeByKey[k]).map(k => _calTypeByKey[k]);
+  const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  let calMenuEl = null, calMenuTarget = null, calMenuHideTimer = null;
+
+  function calDateISO(day) {
+    const y = DATA.calendar.year;
+    const mo = CAL_MONTHS.indexOf(DATA.calendar.month) + 1;
+    return `${y}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  function ensureCalMenu() {
+    if (calMenuEl) return calMenuEl;
+    const card = document.querySelector('.calendar-card');
+    if (!card) return null;
+    calMenuEl = document.createElement('div');
+    calMenuEl.className = 'cal-menu';
+    EDIT_TYPES.forEach(({ type, label }) => {
+      const opt = document.createElement('button');
+      opt.className = 'cal-menu-opt';
+      opt.type = 'button';
+      opt.innerHTML = `<span class="cal-menu-dot ${type}"></span>${label}`;
+      opt.addEventListener('click', () => chooseCalType(type));
+      calMenuEl.appendChild(opt);
+    });
+    calMenuEl.addEventListener('mouseenter', () => clearTimeout(calMenuHideTimer));
+    calMenuEl.addEventListener('mouseleave', scheduleHideCalMenu);
+    card.appendChild(calMenuEl);
+    return calMenuEl;
+  }
+
+  function showCalMenu(cell, dateISO) {
+    const card = document.querySelector('.calendar-card');
+    const menu = ensureCalMenu();
+    if (!card || !menu) return;
+    clearTimeout(calMenuHideTimer);
+    calMenuTarget = { cell, dateISO };
+    menu.classList.add('show');
+    const cardRect = card.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    let top  = cellRect.bottom - cardRect.top + 4;
+    let left = cellRect.left - cardRect.left + cellRect.width / 2 - menu.offsetWidth / 2;
+    left = Math.max(4, Math.min(left, card.clientWidth - menu.offsetWidth - 4));
+    if (top + menu.offsetHeight > card.clientHeight)          // flip above if it would overflow
+      top = cellRect.top - cardRect.top - menu.offsetHeight - 4;
+    menu.style.top  = Math.max(4, top) + 'px';
+    menu.style.left = left + 'px';
+  }
+
+  function scheduleHideCalMenu() {
+    clearTimeout(calMenuHideTimer);
+    calMenuHideTimer = setTimeout(hideCalMenu, 180);
+  }
+
+  function hideCalMenu() {
+    clearTimeout(calMenuHideTimer);
+    if (calMenuEl) calMenuEl.classList.remove('show');
+    calMenuTarget = null;
+  }
+
+  function attachCalEdit(cell, dateISO) {
+    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO));
+    cell.addEventListener('mouseleave', scheduleHideCalMenu);
+    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO); });
+  }
+
+  function applyCellType(cell, type) {
+    ['office','home','vacation','holiday','oncalloff','future'].forEach(t => cell.classList.remove(t));
+    cell.classList.add(type);
+  }
+
+  function chooseCalType(type) {
+    if (!calMenuTarget) return;
+    const { cell, dateISO } = calMenuTarget;
+    hideCalMenu();
+    applyCellType(cell, type);               // optimistic
+    if (typeof google === 'undefined' || !google.script) return;  // stitch preview: visual only
+    cell.classList.add('saving');
+    google.script.run
+      .withSuccessHandler(res => {
+        cell.classList.remove('saving');
+        if (res && res.ok) applyRefresh(res); // full refresh rebuilds calendar + charts
+        else cell.classList.add('save-error');
+      })
+      .withFailureHandler(() => { cell.classList.remove('saving'); cell.classList.add('save-error'); })
+      .SetDayType(dateISO, type);
+  }
+
+  // Clicking anywhere else dismisses the menu.
+  document.addEventListener('click', e => {
+    if (calMenuEl && !calMenuEl.contains(e.target)) hideCalMenu();
+  });
 
   buildCalendar('cal-o');
 
@@ -520,7 +622,7 @@
   }
 
   function applyRefresh(newStats, btn) {
-    if (!newStats) { btn.classList.remove('loading'); return; }
+    if (!newStats) { if (btn) btn.classList.remove('loading'); return; }
 
     // Update DATA in-place so all helper functions pick up fresh values
     DATA.rings    = newStats.rings;
@@ -609,7 +711,7 @@
       }
     }
 
-    btn.classList.remove('loading');
+    if (btn) btn.classList.remove('loading');
   }
 
   } // end main-view init guard

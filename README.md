@@ -52,7 +52,7 @@ Tokens are stored in Apps Script **PropertiesService**, not in code or URLs. See
 
 ### Apps Script Logic
 
-1. `doGet` validates the token, [picks a random theme](#theme-system), detects night mode (auto after 4 pm / before 9 am, overridable via `?dark=1`), calls `BuildPageData(key)`
+1. `doGet` validates the token, [picks a random theme](#theme-system), defaults to light mode (dark only via `?dark=1`), calls `BuildPageData(key)`
 2. `BuildPageData` checks the [PropertiesService cache](#cache) first and skips all sheet reads if cache data available. On a cache miss it opens the current year's [sheet](#google-sheet-layout), reads today's date/week; optionally writes the office day, builds the full DATA object, and writes the cache
 3. The HTML template is evaluated: `Index.html` includes all component files and injects `DATA` as JSON
 4. The browser receives one fully assembled HTML page with no extra requests
@@ -68,6 +68,7 @@ A [PropertiesService](https://developers.google.com/apps-script/reference/proper
 | Office, already logged today | Cache hit | 0 sheet reads |
 | Home / Weekend, same day | Cache hit | 0 sheet reads |
 | Refresh button | Cache ignored | Always bypasses the cache (`GetFreshData`) and overwrites it with live data |
+| Calendar edit menu | Cache ignored | Writes/clears one cell (`SetDayType`), then refreshes via `GetFreshData` |
 
 ### Theme System
 
@@ -78,12 +79,16 @@ Four color themes (**Default**, **Matcha**, **Gummy**, **SoftPurple**) are selec
 </div>
 
  <br>
-Dark mode activates automatically but can be forced via URL:
+The dashboard loads in **light mode** by default; the 🌙/☀️ button in the top-right toggles dark mode at runtime, and the active theme name is shown as a small label under the corner buttons. Both can also be forced via URL:
 
 ```
 ?theme=Matcha        force Matcha theme
 ?dark=1              force dark mode
 ```
+
+### Calendar Edit Menu
+
+When a phone tap gets missed, the day can be backfilled by hand. Hovering (or tapping, on mobile) a past or current weekday in the right-hand calendar pops a small menu with the cheat-sheet day types (Office · Home · Vacation · Holiday · OnCallOff). Picking one calls `SetDayType(dateISO, typeKey)` via `google.script.run`, which writes (or clears, for Home) that day's cell and returns fresh stats so the whole dashboard updates in place. Scope: weekdays of the current month and year; future and other-month cells are not editable.
 
 ### Google Sheet Layout
 <div style="text-align: center;">
@@ -218,7 +223,7 @@ Tokens are never hardcoded in source. After deploying the Apps Script project, s
 | File | Responsibility |
 |------|---------------|
 | `NfcRelay.js` | `doGet` entry point, auth, theme selection, template rendering |
-| `Main.js` | `BuildPageData` and `GetFreshData`, perform a cache check and page data assembly |
+| `Main.js` | `BuildPageData`, `GetFreshData`, `SetDayType` (manual day edit); cache check and page data assembly |
 | `CacheHelper.js` | PropertiesService-backed daily cache (read, write, validate, rebuild) |
 | `DataAssembler.js` | `BuildStatsData` turns a SheetBundle into rings/days/calendar/charts |
 | `SheetHelper.js` | Sheet connection, bulk data load (`LoadSheetBundle`), cheat-sheet parsing |

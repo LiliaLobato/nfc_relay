@@ -138,3 +138,47 @@ function GetFreshData() {
   // alreadyLogged is always false here — the banner only fires on a write attempt at page load.
   return { ...stats, status, statusLabel, alreadyLogged: false, alreadyLoggedMessage: '' };
 }
+
+/**
+ * Client-callable: sets (or clears) a single day cell for any weekday of the current
+ * year, then returns fresh page data so the dashboard updates without a reload.
+ *
+ * Backs the calendar hover menu — lets you backfill a day when the phone tap was missed.
+ * 'home' clears the cell; every other type writes its cheatSheet code. GetFreshData()
+ * re-reads the sheet afterwards, so the returned stats already reflect the write.
+ *
+ * @param {string} dateISO 'YYYY-MM-DD' — a weekday in the current year
+ * @param {string} typeKey CSS type string ('office'|'home'|'vacation'|'holiday'|'oncalloff')
+ * @returns {Object} { ok: true, ...freshStats } on success, or { ok: false, error } on failure
+ */
+function SetDayType(dateISO, typeKey) {
+  try {
+    const m = String(dateISO).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) throw new Error('Bad date: ' + dateISO);
+    const date   = new Date(+m[1], +m[2] - 1, +m[3]);
+    const isoDay = (date.getDay() + 6) % 7;
+
+    if (isoDay > WEEK.Fri) throw new Error('Weekends are not tracked');
+    if (date.getFullYear() !== rawDate.getFullYear()) throw new Error('Only the current year can be edited');
+
+    sheet            = GetCurrentSheet();
+    const weekNumber = GetISOWeekForDate(date);
+    const bundle     = LoadSheetBundle(sheet, ss, rawDate.getFullYear(), weekNumber);
+    cheatSheet       = ParseCheatSheet(bundle);
+
+    // 'home' is the empty cell; any other type resolves its code via the cheatSheet.
+    let value = '';
+    if (typeKey !== 'home') {
+      value = Object.keys(cheatSheet).find(k => CellTypeFromValue(k) === typeKey);
+      if (!value) throw new Error('Unknown day type: ' + typeKey);
+    }
+
+    SetCurrentDayCellValue(CalculateCurrentDayCell(isoDay, weekNumber), value);
+    console.log('SetDayType', dateISO, '→', typeKey, '(', value || 'cleared', ')');
+
+    return { ok: true, ...GetFreshData() };
+  } catch (e) {
+    console.log('SetDayType error:', e.message);
+    return { ok: false, error: e.message };
+  }
+}

@@ -14,6 +14,7 @@
 <button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode"><?!= isDark ? '☀️' : '🌙' ?></button>
 <script>var APP_URL = '<?!= ScriptApp.getService().getUrl() ?>';</script>
 <button class="refresh-btn" onclick="refreshData(this)" title="Refresh data">↻</button>
+<div class="theme-name" title="Color profile"><?= theme.replace(/([A-Z])/g, ' $1').trim() ?></div>
 
 <!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
 <div id="view-main" class="view">

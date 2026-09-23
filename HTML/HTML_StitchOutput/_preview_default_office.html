@@ -131,6 +131,14 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .refresh-btn.loading { animation: spin 0.8s linear infinite; pointer-events: none; }
+    /* Current color profile name, shown under the corner buttons */
+    .theme-name {
+      position: fixed; top: 60px; right: 16px; z-index: 100;
+      background: var(--card); color: var(--muted);
+      border-radius: 999px; padding: 3px 12px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      box-shadow: var(--shadow); pointer-events: none;
+    }
 
     /* ---- View tabs ---- */
     .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 28px; }
@@ -253,7 +261,7 @@
     .day-pill-ww    { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
     /* ---- Calendar ---- */
-    .calendar-card { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+    .calendar-card { display: flex; flex-direction: column; justify-content: center; height: 100%; position: relative; }
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .cal-title  { font-size: 15px; font-weight: 700; }
     .cal-grid   { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -281,6 +289,35 @@
     .cal-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; justify-content: center; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
     .legend-dot  { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+
+    /* ---- Calendar edit menu (backfill a missed tap) ---- */
+    .cal-day.editable { cursor: pointer; }
+    .cal-day.editable:hover { box-shadow: 0 0 0 2px var(--accent); }
+    .cal-day.saving { opacity: 0.45; }
+    .cal-day.save-error { box-shadow: 0 0 0 2px #e5484d; }
+    .cal-menu {
+      position: absolute; z-index: 30; min-width: 140px;
+      display: flex; flex-direction: column; gap: 2px; padding: 6px;
+      background: var(--card); border: 1px solid var(--separator);
+      border-radius: 12px; box-shadow: 0 8px 24px var(--shadow);
+      visibility: hidden; opacity: 0; pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+    .cal-menu.show { visibility: visible; opacity: 1; pointer-events: auto; }
+    .cal-menu-opt {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 9px; border: none; border-radius: 7px;
+      background: transparent; color: var(--text);
+      font-family: inherit; font-size: 12px; font-weight: 600;
+      text-align: left; cursor: pointer;
+    }
+    .cal-menu-opt:hover { background: var(--separator); }
+    .cal-menu-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+    .cal-menu-dot.office    { background: var(--office-bg); }
+    .cal-menu-dot.home      { background: var(--home-bg); }
+    .cal-menu-dot.vacation  { background: var(--vacation-bg); }
+    .cal-menu-dot.holiday   { background: var(--holiday-bg); }
+    .cal-menu-dot.oncalloff { background: var(--oncall-bg); }
 
     /* ---- Best/Worst pair (always side-by-side) ---- */
     .bw-pair { display: flex; gap: 12px; grid-column: 1 / -1; }
@@ -357,9 +394,10 @@
 </head>
 <body class="">
 
-<button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode">🌙</button>
+<button class="theme-toggle" onclick="toggleDark(this)" title="Toggle dark mode"><?!= isDark ? '☀️' : '🌙' ?></button>
 <script>var APP_URL = '<?!= ScriptApp.getService().getUrl() ?>';</script>
 <button class="refresh-btn" onclick="refreshData(this)" title="Refresh data">↻</button>
+<div class="theme-name" title="Color profile"><?= theme.replace(/([A-Z])/g, ' $1').trim() ?></div>
 
 <!-- ======== MAIN VIEW (office / home / weekend / logged) ======== -->
 <div id="view-main" class="view active">
@@ -1537,12 +1575,28 @@
     btn.textContent = isDark ? '☀️' : '🌙';
     const newRingFill = [cv('--ring1'), cv('--ring2'), cv('--ring3'), cv('--ring4')];
     const newRingBg   = [cv('--ring1-bg'), cv('--ring2-bg'), cv('--ring3-bg'), cv('--ring4-bg')];
+
+    // Ring doughnut charts
     ringCharts.forEach((chart, i) => {
       if (chart) { chart.data.datasets[0].backgroundColor = [newRingFill[i], newRingBg[i]]; chart.update('none'); }
     });
-    const newColors = isDark ? ytdColorsDark : ytdColorsLight;
-    const c = charts['ytd-o'];
-    if (c) { c.data.datasets[0].backgroundColor = newColors; c.update(); }
+
+    // YTD split donut
+    const ytdChart = charts['ytd-o'];
+    if (ytdChart) { ytdChart.data.datasets[0].backgroundColor = isDark ? ytdColorsDark : ytdColorsLight; ytdChart.update('none'); }
+
+    // Line chart — ring vars differ between modes
+    const lineChart = charts['line-o'];
+    if (lineChart) {
+      lineChart.data.datasets[0].borderColor = newRingFill[0];
+      lineChart.data.datasets[1].borderColor = newRingFill[1];
+      lineChart.data.datasets[2].borderColor = newRingFill[2];
+      lineChart.update('none');
+    }
+
+    // Pace chart — ring var differs between modes
+    const paceChart = charts['pace-o'];
+    if (paceChart) { paceChart.data.datasets[0].borderColor = newRingFill[0]; paceChart.update('none'); }
   }
 
   // ---- Calendar ----
@@ -1570,6 +1624,11 @@
       const type = types[d] || 'future';
       cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
       cell.textContent = d;
+      // Past/today weekdays of the current month are editable — backfill a missed tap.
+      if (type !== 'future' && type !== 'weekend-day') {
+        cell.classList.add('editable');
+        attachCalEdit(cell, calDateISO(d));
+      }
       el.appendChild(cell);
     }
     calNextDays.forEach(({ day, type }) => {
@@ -1579,6 +1638,103 @@
       el.appendChild(cell);
     });
   }
+
+  // ---- Calendar edit menu (backfill a missed tap) ----
+  // Type options, driven by the cheatSheet but ordered Office/Home first.
+  const _calTypeByKey = Object.fromEntries(DATA.charts.types.map(t => [t.type, t]));
+  const EDIT_TYPES = ['office','home','vacation','holiday','oncalloff']
+    .filter(k => _calTypeByKey[k]).map(k => _calTypeByKey[k]);
+  const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  let calMenuEl = null, calMenuTarget = null, calMenuHideTimer = null;
+
+  function calDateISO(day) {
+    const y = DATA.calendar.year;
+    const mo = CAL_MONTHS.indexOf(DATA.calendar.month) + 1;
+    return `${y}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  function ensureCalMenu() {
+    if (calMenuEl) return calMenuEl;
+    const card = document.querySelector('.calendar-card');
+    if (!card) return null;
+    calMenuEl = document.createElement('div');
+    calMenuEl.className = 'cal-menu';
+    EDIT_TYPES.forEach(({ type, label }) => {
+      const opt = document.createElement('button');
+      opt.className = 'cal-menu-opt';
+      opt.type = 'button';
+      opt.innerHTML = `<span class="cal-menu-dot ${type}"></span>${label}`;
+      opt.addEventListener('click', () => chooseCalType(type));
+      calMenuEl.appendChild(opt);
+    });
+    calMenuEl.addEventListener('mouseenter', () => clearTimeout(calMenuHideTimer));
+    calMenuEl.addEventListener('mouseleave', scheduleHideCalMenu);
+    card.appendChild(calMenuEl);
+    return calMenuEl;
+  }
+
+  function showCalMenu(cell, dateISO) {
+    const card = document.querySelector('.calendar-card');
+    const menu = ensureCalMenu();
+    if (!card || !menu) return;
+    clearTimeout(calMenuHideTimer);
+    calMenuTarget = { cell, dateISO };
+    menu.classList.add('show');
+    const cardRect = card.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    let top  = cellRect.bottom - cardRect.top + 4;
+    let left = cellRect.left - cardRect.left + cellRect.width / 2 - menu.offsetWidth / 2;
+    left = Math.max(4, Math.min(left, card.clientWidth - menu.offsetWidth - 4));
+    if (top + menu.offsetHeight > card.clientHeight)          // flip above if it would overflow
+      top = cellRect.top - cardRect.top - menu.offsetHeight - 4;
+    menu.style.top  = Math.max(4, top) + 'px';
+    menu.style.left = left + 'px';
+  }
+
+  function scheduleHideCalMenu() {
+    clearTimeout(calMenuHideTimer);
+    calMenuHideTimer = setTimeout(hideCalMenu, 180);
+  }
+
+  function hideCalMenu() {
+    clearTimeout(calMenuHideTimer);
+    if (calMenuEl) calMenuEl.classList.remove('show');
+    calMenuTarget = null;
+  }
+
+  function attachCalEdit(cell, dateISO) {
+    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO));
+    cell.addEventListener('mouseleave', scheduleHideCalMenu);
+    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO); });
+  }
+
+  function applyCellType(cell, type) {
+    ['office','home','vacation','holiday','oncalloff','future'].forEach(t => cell.classList.remove(t));
+    cell.classList.add(type);
+  }
+
+  function chooseCalType(type) {
+    if (!calMenuTarget) return;
+    const { cell, dateISO } = calMenuTarget;
+    hideCalMenu();
+    applyCellType(cell, type);               // optimistic
+    if (typeof google === 'undefined' || !google.script) return;  // stitch preview: visual only
+    cell.classList.add('saving');
+    google.script.run
+      .withSuccessHandler(res => {
+        cell.classList.remove('saving');
+        if (res && res.ok) applyRefresh(res); // full refresh rebuilds calendar + charts
+        else cell.classList.add('save-error');
+      })
+      .withFailureHandler(() => { cell.classList.remove('saving'); cell.classList.add('save-error'); })
+      .SetDayType(dateISO, type);
+  }
+
+  // Clicking anywhere else dismisses the menu.
+  document.addEventListener('click', e => {
+    if (calMenuEl && !calMenuEl.contains(e.target)) hideCalMenu();
+  });
 
   buildCalendar('cal-o');
 
@@ -1612,19 +1768,6 @@
       }
     });
   }
-  function makeRingPct(id, pct, i) {
-    pct = Math.min(pct, 1);
-    ringCharts[i] = new Chart(document.getElementById(id), {
-      type: 'doughnut',
-      data: { datasets: [{ data:[pct, 1-pct], backgroundColor:[ringFill[i],ringBg[i]], borderWidth:0, borderRadius:5 }] },
-      options: {
-        cutout:'72%', responsive:false,
-        plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-        animation:{ duration:2000, easing:'easeOutQuart' }
-      }
-    });
-  }
-
   makeRing('r-o-1', DATA.rings.best10of12,        0);
   makeRing('r-o-2', DATA.rings.best8of12,         1);
   makeRing('r-o-3', DATA.rings.best8of10,         2);
@@ -1633,7 +1776,7 @@
   // ---- Current date references ----
   const _today = new Date();
   const _todayDow = _today.getDay();
-  const TODAY_DOW_IDX = _todayDow === 0 ? -1 : _todayDow - 1;
+  const TODAY_DOW_IDX = (_todayDow >= 1 && _todayDow <= 5) ? _todayDow - 1 : -1;
   const DOW_LABELS = ['Mon','Tue','Wed','Thu','Fri'];
 
   // ---- Chart period data ----
@@ -1660,7 +1803,7 @@
   const xTickColor = ctx => {
     const target = xHiLabel[ctx.chart.canvas.id];
     const label = ctx.label ?? ctx.chart.data.labels?.[ctx.index];
-    if (target && label === target) return ringFill[0];
+    if (target && label === target) return cv('--ring1');
     if (label && label.endsWith('/25')) return chartDimPoint;
     return 'rgba(102,102,102,1)';
   };
@@ -1935,11 +2078,12 @@
   }
 
   function makeYtdChart(id) {
+    const initialColors = document.body.classList.contains('dark') ? ytdColorsDark : ytdColorsLight;
     return new Chart(document.getElementById(id), {
       type: 'doughnut',
       data: {
         labels: ytdLabels,
-        datasets: [{ data: ytdToArray(ytdByPeriod.month), backgroundColor: ytdColorsLight, borderWidth: 0 }]
+        datasets: [{ data: ytdToArray(ytdByPeriod.month), backgroundColor: initialColors, borderWidth: 0 }]
       },
       options: {
         cutout: '50%',
@@ -2034,7 +2178,7 @@
   }
 
   function applyRefresh(newStats, btn) {
-    if (!newStats) { btn.classList.remove('loading'); return; }
+    if (!newStats) { if (btn) btn.classList.remove('loading'); return; }
 
     // Update DATA in-place so all helper functions pick up fresh values
     DATA.rings    = newStats.rings;
@@ -2097,10 +2241,6 @@
     charts['line-o'] = makeLineChart('line-o', currentPeriod);
     charts['pace-o'] = makePaceChart('pace-o', currentPeriod);
     charts['ytd-o']  = makeYtdChart('ytd-o');
-    if (document.body.classList.contains('dark')) {
-      charts['ytd-o'].data.datasets[0].backgroundColor = ytdColorsDark;
-      charts['ytd-o'].update('none');
-    }
 
     // Refresh YTD row and title
     const ytdRow = document.querySelector('#cy-o .ytd-row');
@@ -2113,7 +2253,21 @@
     if (calEl) { calEl.innerHTML = ''; buildCalendar('cal-o'); }
     buildHeatmap('heatmap-o', hmDataByPeriod[currentPeriod]);
 
-    btn.classList.remove('loading');
+    // Update title card status badge and already-logged banner
+    if (newStats.status) {
+      const badge = document.querySelector('.status-badge');
+      if (badge) {
+        badge.className = 'status-badge ' + newStats.status;
+        badge.textContent = newStats.statusLabel;
+      }
+      const banner = document.querySelector('.already-logged-banner');
+      if (banner) {
+        banner.className = 'already-logged-banner ' + (newStats.alreadyLogged ? 'true' : 'false') + ' ' + newStats.status;
+        banner.textContent = newStats.alreadyLoggedMessage || '';
+      }
+    }
+
+    if (btn) btn.classList.remove('loading');
   }
 
   } // end main-view init guard

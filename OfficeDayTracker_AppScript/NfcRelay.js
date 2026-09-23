@@ -35,17 +35,6 @@ function PickTheme() {
 }
 
 /**
- * Returns true if the current hour is outside working hours (4pm to 9am).
- * Used to auto-select dark mode when no preference is passed.
- *
- * @returns {boolean}
- */
-function IsNightTime() {
-  const hour = new Date().getHours();
-  return hour >= 16 || hour < 9;
-}
-
-/**
  * Reads Office and Home auth tokens from Script Properties.
  *
  * @returns {{ Office: string|null, Home: string|null }}
@@ -79,7 +68,7 @@ function _renderPage(template) {
  * @param {string} e.parameter.key 'Office' or 'Home'
  * @param {string} e.parameter.token auth token
  * @param {string} [e.parameter.theme] overrides random theme selection
- * @param {string} [e.parameter.dark] '1' for dark, '0' for light, omit for auto
+ * @param {string} [e.parameter.dark] '1' for dark; omit (or any other value) for light (the default)
  * @returns {GoogleAppsScript.HTML.HtmlOutput}
  */
 function doGet(e) {
@@ -88,7 +77,8 @@ function doGet(e) {
   const tokens = GetTokens();
 
   const theme  = e.parameter.theme  || PickTheme();
-  const isDark = e.parameter.dark !== undefined ? e.parameter.dark === '1' : IsNightTime();
+  // Default to light mode; only ?dark=1 forces dark. The in-page toggle still switches at runtime.
+  const isDark = e.parameter.dark === '1';
 
   _tplTheme  = theme;
   _tplIsDark = isDark;
