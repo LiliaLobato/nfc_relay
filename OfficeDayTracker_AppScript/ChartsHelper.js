@@ -240,16 +240,81 @@ function GetBeltAveragesRange(bundle, startWeek, endWeek) {
 
 
 /**
- * Returns the number of office days still needed this week and next.
+ * Office days logged for a single ISO week, reaching into the prior year for
+ * week numbers <= 0 (so a trailing-12 window is correct near the year boundary).
  *
  * @param {SheetBundle} bundle
- * @param {number} workWeek current ISO week number
+ * @param {number} ww ISO week number; <= 0 means (weeksInPriorYear + ww)
+ * @returns {number}
+ */
+function _weekOfficeCount(bundle, ww) {
+  const countOffice = daily =>
+    daily.filter(cell => CellTypeFromValue(cell) === 'office').length;
+
+  if (ww >= 1) {
+    const row = bundle.main[weekRowIndex(ww)];
+    return row ? countOffice(row.slice(MEGARANGE.colDailyStart, MEGARANGE.colDailyEnd)) : 0;
+  }
+
+  if (!bundle.prior) return 0;
+  const priorWW = bundle.prior.weeksInYear + ww;      // ww=0 -> last week of prior year
+  const row     = bundle.prior.main[priorWW - 1];      // prior range starts at WW1 = index 0
+  return row ? countOffice(row.slice(MEGARANGE.colDailyStart, MEGARANGE.colDailyEnd)) : 0;
+}
+
+
+/**
+ * Returns the number of office days still needed this week and next to keep the
+ * BELT goal — best 8 of the trailing 12 weeks averaging at least the week goal.
+ *
+ * For each pill week it finds the fewest extra office days that bring the
+ * best-8-of-12 average up to goal (full belt recovery). Two refinements keep the
+ * number honest for the live week:
+ *   - office days already logged that week count toward the goal, and
+ *   - the answer is capped at the weekdays still open — on the live week only
+ *     today..Friday remain (Thursday caps at 2), on future weeks all 5 are open.
+ * When even every remaining day cannot reach the goal, it returns that cap
+ * ("go every day left").
+ *
+ * @param {SheetBundle} bundle
+ * @param {number} baseWW ISO week of the first pill (current week, or next week on Fri/weekend)
+ * @param {number} weekNumber the true current ISO week — used to detect the live week
+ * @param {number} dayOfWeek ISO day index of today (WEEK.Mon=0 .. WEEK.Fri=4)
  * @returns {{ thisWeek: number, nextWeek: number }}
  */
-function GetDaysNeeded(bundle, workWeek) {
-  const i = weekRowIndex(workWeek);
+function GetDaysNeeded(bundle, baseWW, weekNumber, dayOfWeek) {
+  const weekGoal = GetWeekGoal(bundle);
+
+  const daysNeededForWeek = (pw) => {
+    const row   = bundle.main[weekRowIndex(pw)] || [];
+    const daily = row.slice(MEGARANGE.colDailyStart, MEGARANGE.colDailyEnd);
+    const officeSoFar = daily.filter(cell => CellTypeFromValue(cell) === 'office').length;
+
+    // Weekdays still open to log: today..Fri for the live week, the whole week otherwise.
+    const openStart = (pw === weekNumber) ? dayOfWeek : WEEK.Mon;
+    let openSlots = 0;
+    for (let col = openStart; col <= WEEK.Fri; col++) {
+      if (!daily[col]) openSlots++;
+    }
+
+    const prior11 = [];
+    for (let w = pw - 11; w <= pw - 1; w++) prior11.push(_weekOfficeCount(bundle, w));
+
+    const best8of12Avg = (thisWeekOffice) => {
+      const window = prior11.concat([thisWeekOffice]).sort((a, b) => b - a);
+      let sum = 0;
+      for (let k = 0; k < 8; k++) sum += (window[k] || 0);
+      return sum / 8;
+    };
+
+    for (let add = 0; add <= openSlots; add++) {
+      if (best8of12Avg(officeSoFar + add) >= weekGoal) return add;
+    }
+    return openSlots;   // goal unreachable this week — every remaining day
+  };
+
   return {
-    thisWeek: bundle.main[i][MEGARANGE.colDaysNeeded],
-    nextWeek: bundle.main[i + 1][MEGARANGE.colDaysNeeded],
+    thisWeek: daysNeededForWeek(baseWW),
+    nextWeek: daysNeededForWeek(baseWW + 1),
   };
 }

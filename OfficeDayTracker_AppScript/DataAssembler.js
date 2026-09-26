@@ -19,7 +19,7 @@ function BuildStatsData(bundle, weekNumber, dayOfWeek, year, monthIdx) {
   const stats             = { best10of12: beltRow[0], best8of12: beltRow[1], best8of10: beltRow[2] };
   const shiftPillsForward = dayOfWeek === WEEK.Fri;
   const baseWW            = shiftPillsForward ? weekNumber + 1 : weekNumber;
-  const needed            = GetDaysNeeded(bundle, baseWW);
+  const needed            = GetDaysNeeded(bundle, baseWW, weekNumber, dayOfWeek);
 
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
   const calFirst    = GetISOWeekForDate(new Date(year, monthIdx, 1));
