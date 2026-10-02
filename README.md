@@ -89,7 +89,7 @@ The dashboard loads in **light mode** by default; the 🌙/☀️ button in the 
 
 ### Calendar Edit Menu
 
-When a phone tap gets missed, the day can be backfilled by hand. Hovering (or tapping, on mobile) a past or current weekday in the right-hand calendar pops a small menu with the cheat-sheet day types (Office · Home · Vacation · Holiday · OnCallOff). Picking one calls `SetDayType(dateISO, typeKey)` via `google.script.run`, which writes (or clears, for Home) that day's cell and returns fresh stats so the whole dashboard updates in place. Scope: past and current weekdays of whichever month the calendar is showing (including last year's tab); future days and the greyed days of adjacent months are not editable.
+When a phone tap gets missed, the day can be backfilled by hand. Hovering (or tapping, on mobile) a past or current weekday in the right-hand calendar pops a small menu with the cheat-sheet day types (Office · Home · Vacation · Holiday · OnCallOff). Picking one calls `SetDayType(dateISO, typeKey)` via `google.script.run`, which writes (or clears, for Home) that day's cell and returns fresh stats so the whole dashboard updates in place. Scope: weekdays of whichever month the calendar is showing (including last year's tab). Future days can be set to Vacation · Holiday · OnCallOff or back to Home (cleared) to plan ahead, but not to Office. The greyed days of adjacent months are not editable.
 
 ### Calendar Month Navigation
 

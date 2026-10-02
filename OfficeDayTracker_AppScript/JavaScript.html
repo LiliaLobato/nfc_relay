@@ -52,8 +52,8 @@
     const calNextDays = cal.nextDays;
     const todayNum    = cal.today;
     const daysInMonth = cal.daysInMonth;
-    // Older cached data has no lastEditableDay — fall back to "every non-future day".
-    const lastEditable = cal.lastEditableDay ?? daysInMonth;
+    // Older cached data has no lastPastDay — there, every future day has type 'future'.
+    const isFutureDay = (d, type) => cal.lastPastDay != null ? d > cal.lastPastDay : type === 'future';
 
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
       const h = document.createElement('div');
@@ -70,10 +70,11 @@
       const type = types[d] || 'future';
       cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
       cell.textContent = d;
-      // Past/today weekdays of the shown month are editable — backfill a missed tap.
-      if (d <= lastEditable && type !== 'future' && type !== 'weekend-day') {
+      // Weekdays of the shown month are editable: past/today to backfill a missed tap,
+      // future to plan absences (no Office — see showCalMenu).
+      if (type !== 'weekend-day') {
         cell.classList.add('editable');
-        attachCalEdit(cell, calDateISO(cal, d));
+        attachCalEdit(cell, calDateISO(cal, d), isFutureDay(d, type));
       }
       el.appendChild(cell);
     }
@@ -110,6 +111,7 @@
       const opt = document.createElement('button');
       opt.className = 'cal-menu-opt';
       opt.type = 'button';
+      opt.dataset.type = type;
       opt.innerHTML = `<span class="cal-menu-dot ${type}"></span>${label}`;
       opt.addEventListener('click', () => chooseCalType(type));
       calMenuEl.appendChild(opt);
@@ -120,12 +122,16 @@
     return calMenuEl;
   }
 
-  function showCalMenu(cell, dateISO) {
+  function showCalMenu(cell, dateISO, isFuture) {
     const card = document.querySelector('.calendar-card');
     const menu = ensureCalMenu();
     if (!card || !menu) return;
     clearTimeout(calMenuHideTimer);
-    calMenuTarget = { cell, dateISO };
+    calMenuTarget = { cell, dateISO, isFuture };
+    // Future days can't be marked as Office — only planned absences or Home (clear).
+    menu.querySelectorAll('.cal-menu-opt').forEach(opt => {
+      opt.style.display = isFuture && opt.dataset.type === 'office' ? 'none' : '';
+    });
     menu.classList.add('show');
     const cardRect = card.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
@@ -149,10 +155,10 @@
     calMenuTarget = null;
   }
 
-  function attachCalEdit(cell, dateISO) {
-    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO));
+  function attachCalEdit(cell, dateISO, isFuture) {
+    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO, isFuture));
     cell.addEventListener('mouseleave', scheduleHideCalMenu);
-    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO); });
+    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO, isFuture); });
   }
 
   function applyCellType(cell, type) {
@@ -162,9 +168,10 @@
 
   function chooseCalType(type) {
     if (!calMenuTarget) return;
-    const { cell, dateISO } = calMenuTarget;
+    const { cell, dateISO, isFuture } = calMenuTarget;
+    if (isFuture && type === 'office') return;
     hideCalMenu();
-    applyCellType(cell, type);               // optimistic
+    applyCellType(cell, isFuture && type === 'home' ? 'future' : type);  // optimistic
     if (typeof google === 'undefined' || !google.script) return;  // stitch preview: visual only
     cell.classList.add('saving');
     google.script.run

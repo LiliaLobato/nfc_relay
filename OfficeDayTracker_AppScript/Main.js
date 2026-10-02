@@ -176,7 +176,8 @@ function _buildNavCalendar(year, monthIdx) {
  * Client-callable: sets (or clears) a single weekday cell in the current or an adjacent
  * year's sheet, then returns fresh page data so the dashboard updates without a reload.
  *
- * Backs the calendar hover menu — lets you backfill a day when the phone tap was missed.
+ * Backs the calendar hover menu — lets you backfill a day when the phone tap was missed,
+ * or plan an absence on a future day (future days can't be set to Office).
  * 'home' clears the cell; every other type writes its cheatSheet code. GetFreshData()
  * re-reads the sheet afterwards, so the returned stats already reflect the write.
  * The cell lives in the tab of the date's ISO year (Dec 29–31 can belong to next year's WW1).
@@ -198,6 +199,8 @@ function SetDayType(dateISO, typeKey, viewYear, viewMonthIdx) {
 
     if (isoDay > WEEK.Fri) throw new Error('Weekends are not tracked');
     if (Math.abs(isoYr - curYr) > 1) throw new Error('Only the current and adjacent years can be edited');
+    const todayDate = new Date(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate());
+    if (typeKey === 'office' && date > todayDate) throw new Error('Future days cannot be marked as Office');
 
     sheet            = GetCurrentSheet();
     const weekNumber = GetISOWeekForDate(date);

@@ -63,7 +63,7 @@ function _calDayType(value, date, todayDate) {
  * @param {number} monthIdx zero-based (0=Jan, 11=Dec)
  * @returns {{
  *   month: string, monthLabel: string, year: number,
- *   daysInMonth: number, today: number|null, lastEditableDay: number,
+ *   daysInMonth: number, today: number|null, lastPastDay: number,
  *   types: Object, prevDays: Array, nextDays: Array
  * }}
  */
@@ -74,8 +74,8 @@ function BuildCalendarData(valueAt, year, monthIdx) {
   const isThisMonth = year === rawDate.getFullYear() && monthIdx === rawDate.getMonth();
   // null on weekends (and other months) so the calendar does not highlight a weekend date as current
   const today = isThisMonth && (rawDate.getDay() + 6) % 7 <= WEEK.Fri ? rawDate.getDate() : null;
-  // Days 1..lastEditableDay can be backfilled; future days cannot.
-  const lastEditableDay = new Date(year, monthIdx, 1) > todayDate ? 0
+  // Days 1..lastPastDay are today or earlier; later days are future (can't be marked Office).
+  const lastPastDay = new Date(year, monthIdx, 1) > todayDate ? 0
     : isThisMonth ? rawDate.getDate() : daysInMonth;
 
   const typeAt = date => _calDayType(valueAt(date), date, todayDate);
@@ -107,7 +107,7 @@ function BuildCalendarData(valueAt, year, monthIdx) {
     year,
     daysInMonth,
     today,
-    lastEditableDay,
+    lastPastDay,
     types,
     prevDays,
     nextDays,
