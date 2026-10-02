@@ -140,31 +140,71 @@ function GetFreshData() {
 }
 
 /**
- * Client-callable: sets (or clears) a single day cell for any weekday of the current
- * year, then returns fresh page data so the dashboard updates without a reload.
+ * Client-callable: returns the calendar data for one month, for the calendar < > navigation.
+ * Reads the sheet(s) only on demand — the page load never pays for other months.
+ *
+ * @param {number} year
+ * @param {number} monthIdx zero-based (0=Jan, 11=Dec)
+ * @returns {Object} { ok: true, calendar } on success, or { ok: false, error } on failure
+ */
+function GetCalendarMonth(year, monthIdx) {
+  try {
+    return { ok: true, calendar: _buildNavCalendar(year, monthIdx) };
+  } catch (e) {
+    console.log('GetCalendarMonth error:', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
+ * Validates that a month is within CALENDAR_NAV_MONTHS of the current month and builds it.
+ *
+ * @param {number} year
+ * @param {number} monthIdx zero-based
+ * @returns {Object} calendar data
+ * @throws {Error} on a bad or out-of-range month
+ */
+function _buildNavCalendar(year, monthIdx) {
+  const offset = (year - rawDate.getFullYear()) * 12 + monthIdx - rawDate.getMonth();
+  if (!Number.isInteger(offset) || monthIdx < 0 || monthIdx > 11 || Math.abs(offset) > CALENDAR_NAV_MONTHS) {
+    throw new Error(`Month out of range: ${year}-${monthIdx + 1}`);
+  }
+  return BuildCalendarMonth(year, monthIdx);
+}
+
+/**
+ * Client-callable: sets (or clears) a single weekday cell in the current or an adjacent
+ * year's sheet, then returns fresh page data so the dashboard updates without a reload.
  *
  * Backs the calendar hover menu — lets you backfill a day when the phone tap was missed.
  * 'home' clears the cell; every other type writes its cheatSheet code. GetFreshData()
  * re-reads the sheet afterwards, so the returned stats already reflect the write.
+ * The cell lives in the tab of the date's ISO year (Dec 29–31 can belong to next year's WW1).
  *
- * @param {string} dateISO 'YYYY-MM-DD' — a weekday in the current year
+ * @param {string} dateISO 'YYYY-MM-DD' — a weekday in the current or an adjacent ISO year
  * @param {string} typeKey CSS type string ('office'|'home'|'vacation'|'holiday'|'oncalloff')
- * @returns {Object} { ok: true, ...freshStats } on success, or { ok: false, error } on failure
+ * @param {number=} viewYear optional month the calendar is showing; when given, the
+ * @param {number=} viewMonthIdx  response also carries its rebuilt data as viewCalendar
+ * @returns {Object} { ok: true, ...freshStats, viewCalendar? } on success, or { ok: false, error } on failure
  */
-function SetDayType(dateISO, typeKey) {
+function SetDayType(dateISO, typeKey, viewYear, viewMonthIdx) {
   try {
     const m = String(dateISO).match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) throw new Error('Bad date: ' + dateISO);
     const date   = new Date(+m[1], +m[2] - 1, +m[3]);
     const isoDay = (date.getDay() + 6) % 7;
+    const isoYr  = GetISOYearForDate(date);
+    const curYr  = rawDate.getFullYear();
 
     if (isoDay > WEEK.Fri) throw new Error('Weekends are not tracked');
-    if (date.getFullYear() !== rawDate.getFullYear()) throw new Error('Only the current year can be edited');
+    if (Math.abs(isoYr - curYr) > 1) throw new Error('Only the current and adjacent years can be edited');
 
     sheet            = GetCurrentSheet();
     const weekNumber = GetISOWeekForDate(date);
-    const bundle     = LoadSheetBundle(sheet, ss, rawDate.getFullYear(), weekNumber);
-    cheatSheet       = ParseCheatSheet(bundle);
+    cheatSheet       = ParseCheatSheet({ main: sheet.getRange(DATALOCATION.megaRange).getValues() });
+
+    const targetSheet = isoYr === curYr ? sheet : ss.getSheetByName(String(isoYr));
+    if (!targetSheet) throw new Error(`Sheet ${isoYr} not found`);
 
     // 'home' is the empty cell; any other type resolves its code via the cheatSheet.
     let value = '';
@@ -173,10 +213,12 @@ function SetDayType(dateISO, typeKey) {
       if (!value) throw new Error('Unknown day type: ' + typeKey);
     }
 
-    SetCurrentDayCellValue(CalculateCurrentDayCell(isoDay, weekNumber), value);
+    targetSheet.getRange(CalculateCurrentDayCell(isoDay, weekNumber)).setValue(value);
     console.log('SetDayType', dateISO, '→', typeKey, '(', value || 'cleared', ')');
 
-    return { ok: true, ...GetFreshData() };
+    const result = { ok: true, ...GetFreshData() };
+    if (viewYear != null && viewMonthIdx != null) result.viewCalendar = _buildNavCalendar(viewYear, viewMonthIdx);
+    return result;
   } catch (e) {
     console.log('SetDayType error:', e.message);
     return { ok: false, error: e.message };

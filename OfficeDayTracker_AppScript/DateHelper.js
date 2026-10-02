@@ -64,6 +64,19 @@ function GetISOWeekForDate(date) {
 }
 
 /**
+ * Returns the ISO week-numbering year for any date — the year its ISO week belongs to.
+ * Differs from getFullYear() only around New Year (e.g. Dec 29 can be WW1 of next year).
+ *
+ * @param {Date} date
+ * @returns {number}
+ */
+function GetISOYearForDate(date) {
+  const thursday = new Date(date.valueOf());
+  thursday.setDate(thursday.getDate() + 3 - (thursday.getDay() + 6) % 7);
+  return thursday.getFullYear();
+}
+
+/**
  * Returns the ISO week number for today. Validates the result is in range 1-53.
  *
  * @returns {number} ISO week number
