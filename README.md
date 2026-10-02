@@ -157,6 +157,9 @@ STAGE 4  Push to Apps Script
 
 STAGE 5  Verify with real data
     Open the Apps Script test deployment URL in browser
+
+STAGE 6  Ship it to the NFC tags
+    See the Deployment section below. Push alone does NOT update the live URL.
 ```
 
 ### stitch.py
@@ -193,6 +196,64 @@ python validate.py --verbose                # show detail on failures
 ```
 
 Exit codes: `0` = pass, `1` = fail (CI-safe).
+
+---
+<br>
+
+## Deployment
+
+**Read this before deploying. `clasp push` does _not_ update what the NFC tags hit.**
+
+The NFC tags never point at Apps Script directly. The chain is:
+
+```
+NFC tag  →  https://lilialobato.github.io/nfc_relay/   (index.html on GitHub Pages)
+         →  https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec   (hardcoded in index.html)
+         →  Apps Script web app
+```
+
+That `<DEPLOYMENT_ID>` is the one and only deployment the tags reach. The whole point of deploying is to point **that same deployment ID** at your newest code, so the `/exec` URL — and therefore the tags and the GitHub Pages redirect — never have to change.
+
+- `clasp push` only updates the script's **HEAD** (the editable source). It does **not** change what the live `/exec` URL serves.
+- A new version + redeploy of the **existing deployment ID** is what makes the live URL serve new code.
+- Running a bare `clasp deploy` (no `-i`) creates a **brand-new deployment with a different `/exec` URL**, which would orphan the tags. Don't do that unless you intend to re-write every tag and the GitHub Pages redirect.
+
+### The live deployment
+
+| | |
+|---|---|
+| Deployment ID | `AKfycbzg6O9J3Lkk1CGgj3pchp9So1DyMvXhPCjrqkf9lcVB3GLsjzVyD9O-k4eECtJiXSbtMg` |
+| Referenced in | `index.html` (`SCRIPT_URL` constant at repo root) |
+| Access | `ANYONE_ANONYMOUS`, `executeAs: USER_DEPLOYING` (see `appsscript.json`) |
+
+If `index.html`'s `SCRIPT_URL` and this ID ever disagree, `index.html` is the source of truth for which deployment the tags actually use.
+
+### Deploy steps
+
+Run from `OfficeDayTracker_AppScript/`:
+
+```bash
+# 1. Push the latest source to the script HEAD
+clasp push -f
+
+# 2. Create a new version AND redeploy the SAME deployment ID to it.
+#    The -i flag is what keeps the /exec URL identical.
+clasp deploy -i AKfycbzg6O9J3Lkk1CGgj3pchp9So1DyMvXhPCjrqkf9lcVB3GLsjzVyD9O-k4eECtJiXSbtMg \
+  -d "short note, e.g. the commit subject or hash"
+
+# 3. Verify the deployment moved to a new version number
+clasp deployments | grep AKfycbzg6O9
+```
+
+Step 3 should show the deployment at a higher `@NN` than before, with your description. Then tap a tag (or open the GitHub Pages URL) and use the dashboard **refresh button** to bypass the daily cache and confirm the new code is live.
+
+### If you need the current deployment list
+
+```bash
+clasp deployments
+```
+
+The live one is the ID in the table above. The `@HEAD` entry is the dev/latest-source deployment, not the tags' target. Older `@13`–`@17` entries are stale and can be removed with `clasp undeploy <id>` if you want a tidier list (never undeploy the live ID).
 
 ---
 
