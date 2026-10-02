@@ -61,6 +61,10 @@ const CHART_LOOKBACK = {
   monthlyThresholdDays: 12,  // min working days elapsed before current month enters best/worst
 };
 
+// How many months back/forward the calendar < > navigation can go from the current month.
+// Mirrored by CAL_NAV_MONTHS in JavaScript.html.
+const CALENDAR_NAV_MONTHS = 4;
+
 // Messages shown in the already-logged banner per day type.
 // 'home' and 'office' fall through to the default 'Already logged'.
 const ALREADY_LOGGED_MSGS = {

@@ -44,14 +44,16 @@
   }
 
   // ---- Calendar ----
-  function buildCalendar(id) {
+  function buildCalendar(id, cal = DATA.calendar) {
     const el = document.getElementById(id);
     if (!el) return;
-    const types       = DATA.calendar.types;
-    const calPrevDays = DATA.calendar.prevDays;
-    const calNextDays = DATA.calendar.nextDays;
-    const todayNum    = DATA.calendar.today;
-    const daysInMonth = DATA.calendar.daysInMonth;
+    const types       = cal.types;
+    const calPrevDays = cal.prevDays;
+    const calNextDays = cal.nextDays;
+    const todayNum    = cal.today;
+    const daysInMonth = cal.daysInMonth;
+    // Older cached data has no lastPastDay — there, every future day has type 'future'.
+    const isFutureDay = (d, type) => cal.lastPastDay != null ? d > cal.lastPastDay : type === 'future';
 
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
       const h = document.createElement('div');
@@ -68,10 +70,11 @@
       const type = types[d] || 'future';
       cell.className = 'cal-day ' + type + (d === todayNum ? ' today' : '');
       cell.textContent = d;
-      // Past/today weekdays of the current month are editable — backfill a missed tap.
-      if (type !== 'future' && type !== 'weekend-day') {
+      // Weekdays of the shown month are editable: past/today to backfill a missed tap,
+      // future to plan absences (no Office — see showCalMenu).
+      if (type !== 'weekend-day') {
         cell.classList.add('editable');
-        attachCalEdit(cell, calDateISO(d));
+        attachCalEdit(cell, calDateISO(cal, d), isFutureDay(d, type));
       }
       el.appendChild(cell);
     }
@@ -92,9 +95,9 @@
 
   let calMenuEl = null, calMenuTarget = null, calMenuHideTimer = null;
 
-  function calDateISO(day) {
-    const y = DATA.calendar.year;
-    const mo = CAL_MONTHS.indexOf(DATA.calendar.month) + 1;
+  function calDateISO(cal, day) {
+    const y = cal.year;
+    const mo = CAL_MONTHS.indexOf(cal.month) + 1;
     return `${y}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   }
 
@@ -108,6 +111,7 @@
       const opt = document.createElement('button');
       opt.className = 'cal-menu-opt';
       opt.type = 'button';
+      opt.dataset.type = type;
       opt.innerHTML = `<span class="cal-menu-dot ${type}"></span>${label}`;
       opt.addEventListener('click', () => chooseCalType(type));
       calMenuEl.appendChild(opt);
@@ -118,12 +122,16 @@
     return calMenuEl;
   }
 
-  function showCalMenu(cell, dateISO) {
+  function showCalMenu(cell, dateISO, isFuture) {
     const card = document.querySelector('.calendar-card');
     const menu = ensureCalMenu();
     if (!card || !menu) return;
     clearTimeout(calMenuHideTimer);
-    calMenuTarget = { cell, dateISO };
+    calMenuTarget = { cell, dateISO, isFuture };
+    // Future days can't be marked as Office — only planned absences or Home (clear).
+    menu.querySelectorAll('.cal-menu-opt').forEach(opt => {
+      opt.style.display = isFuture && opt.dataset.type === 'office' ? 'none' : '';
+    });
     menu.classList.add('show');
     const cardRect = card.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
@@ -147,10 +155,10 @@
     calMenuTarget = null;
   }
 
-  function attachCalEdit(cell, dateISO) {
-    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO));
+  function attachCalEdit(cell, dateISO, isFuture) {
+    cell.addEventListener('mouseenter', () => showCalMenu(cell, dateISO, isFuture));
     cell.addEventListener('mouseleave', scheduleHideCalMenu);
-    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO); });
+    cell.addEventListener('click', e => { e.stopPropagation(); showCalMenu(cell, dateISO, isFuture); });
   }
 
   function applyCellType(cell, type) {
@@ -160,9 +168,10 @@
 
   function chooseCalType(type) {
     if (!calMenuTarget) return;
-    const { cell, dateISO } = calMenuTarget;
+    const { cell, dateISO, isFuture } = calMenuTarget;
+    if (isFuture && type === 'office') return;
     hideCalMenu();
-    applyCellType(cell, type);               // optimistic
+    applyCellType(cell, isFuture && type === 'home' ? 'future' : type);  // optimistic
     if (typeof google === 'undefined' || !google.script) return;  // stitch preview: visual only
     cell.classList.add('saving');
     google.script.run
@@ -172,7 +181,7 @@
         else cell.classList.add('save-error');
       })
       .withFailureHandler(() => { cell.classList.remove('saving'); cell.classList.add('save-error'); })
-      .SetDayType(dateISO, type);
+      .SetDayType(dateISO, type, ...(calIsHome() ? [] : [calView.year, calView.monthIdx]));
   }
 
   // Clicking anywhere else dismisses the menu.
@@ -180,7 +189,73 @@
     if (calMenuEl && !calMenuEl.contains(e.target)) hideCalMenu();
   });
 
+  // ---- Calendar month navigation (< >) ----
+  // Only the calendar changes; other months are fetched on first visit and kept in memory.
+  const CAL_NAV_MONTHS = 4;  // mirrors CALENDAR_NAV_MONTHS in GlobalConstants.js
+  const calOf = cal => ({ year: cal.year, monthIdx: CAL_MONTHS.indexOf(cal.month) });
+  const calKey = ({ year, monthIdx }) => year * 12 + monthIdx;
+  let calHome = calOf(DATA.calendar);   // the real current month
+  let calView = calHome;                // the month on screen
+  let calMonthCache = {};               // calKey → calendar data for visited months
+  let calReqSeq = 0;                    // ignores stale responses after fast clicking
+
+  const calIsHome = () => calKey(calView) === calKey(calHome);
+
+  function renderCalendar(cal) {
+    const calEl = document.getElementById('cal-o');
+    if (!calEl) return;
+    hideCalMenu();
+    calEl.innerHTML = '';
+    buildCalendar('cal-o', cal);
+    const titleEl = document.querySelector('.calendar-card .cal-title');
+    if (titleEl) titleEl.textContent = cal.monthLabel;
+    document.querySelector('.calendar-card')?.classList.remove('cal-loading');
+    updateCalNav();
+  }
+
+  function updateCalNav() {
+    const offset = calKey(calView) - calKey(calHome);
+    const prev = document.getElementById('cal-prev');
+    const next = document.getElementById('cal-next');
+    if (prev) prev.disabled = offset <= -CAL_NAV_MONTHS;
+    if (next) next.disabled = offset >= CAL_NAV_MONTHS;
+  }
+
+  function showCalMonth(target) {
+    calView = target;
+    const reqId = ++calReqSeq;
+    if (calIsHome()) return renderCalendar(DATA.calendar);
+    const cached = calMonthCache[calKey(target)];
+    if (cached) return renderCalendar(cached);
+
+    // Not loaded yet: show the new month name while the grid loads.
+    hideCalMenu();
+    updateCalNav();
+    const titleEl = document.querySelector('.calendar-card .cal-title');
+    if (titleEl) titleEl.textContent = `${CAL_MONTHS[target.monthIdx]} ${target.year}`;
+    const card = document.querySelector('.calendar-card');
+    if (card) card.classList.add('cal-loading');
+    const fail = () => { if (reqId === calReqSeq) showCalMonth(calHome); };
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res || !res.ok) return fail();
+        calMonthCache[calKey(target)] = res.calendar;
+        if (reqId === calReqSeq) renderCalendar(res.calendar);
+      })
+      .withFailureHandler(fail)
+      .GetCalendarMonth(target.year, target.monthIdx);
+  }
+
+  function navCalendar(step) {
+    if (typeof google === 'undefined' || !google.script) return;  // stitch preview: no data to fetch
+    const offset = calKey(calView) - calKey(calHome) + step;
+    if (Math.abs(offset) > CAL_NAV_MONTHS) return;
+    const k = calKey(calView) + step;
+    showCalMonth({ year: Math.floor(k / 12), monthIdx: k % 12 });
+  }
+
   buildCalendar('cal-o');
+  updateCalNav();
 
   // ---- CSS variable reader ----
   const cv = s => getComputedStyle(document.body).getPropertyValue(s).trim();
@@ -692,9 +767,11 @@
     const ytdTitleEl = document.querySelector('#cy-o').closest('.chart-item').querySelector('.chart-item-title');
     if (ytdTitleEl) ytdTitleEl.textContent = ytdTitles[currentPeriod];
 
-    // Rebuild calendar and heatmap
-    const calEl = document.getElementById('cal-o');
-    if (calEl) { calEl.innerHTML = ''; buildCalendar('cal-o'); }
+    // Rebuild calendar (staying on the month being viewed) and heatmap
+    calHome = calOf(DATA.calendar);
+    calMonthCache = {};
+    if (newStats.viewCalendar) calMonthCache[calKey(calOf(newStats.viewCalendar))] = newStats.viewCalendar;
+    showCalMonth(calView);
     buildHeatmap('heatmap-o', hmDataByPeriod[currentPeriod]);
 
     // Update title card status badge and already-logged banner

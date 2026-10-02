@@ -69,6 +69,7 @@ A [PropertiesService](https://developers.google.com/apps-script/reference/proper
 | Home / Weekend, same day | Cache hit | 0 sheet reads |
 | Refresh button | Cache ignored | Always bypasses the cache (`GetFreshData`) and overwrites it with live data |
 | Calendar edit menu | Cache ignored | Writes/clears one cell (`SetDayType`), then refreshes via `GetFreshData` |
+| Calendar `<` `>` month navigation | Cache ignored | `GetCalendarMonth` reads only the year tab(s) that month touches, on first visit; the page keeps visited months in memory |
 
 ### Theme System
 
@@ -88,7 +89,11 @@ The dashboard loads in **light mode** by default; the 🌙/☀️ button in the 
 
 ### Calendar Edit Menu
 
-When a phone tap gets missed, the day can be backfilled by hand. Hovering (or tapping, on mobile) a past or current weekday in the right-hand calendar pops a small menu with the cheat-sheet day types (Office · Home · Vacation · Holiday · OnCallOff). Picking one calls `SetDayType(dateISO, typeKey)` via `google.script.run`, which writes (or clears, for Home) that day's cell and returns fresh stats so the whole dashboard updates in place. Scope: weekdays of the current month and year; future and other-month cells are not editable.
+When a phone tap gets missed, the day can be backfilled by hand. Hovering (or tapping, on mobile) a past or current weekday in the right-hand calendar pops a small menu with the cheat-sheet day types (Office · Home · Vacation · Holiday · OnCallOff). Picking one calls `SetDayType(dateISO, typeKey)` via `google.script.run`, which writes (or clears, for Home) that day's cell and returns fresh stats so the whole dashboard updates in place. Scope: weekdays of whichever month the calendar is showing (including last year's tab). Future days can be set to Vacation · Holiday · OnCallOff or back to Home (cleared) to plan ahead, but not to Office. The greyed days of adjacent months are not editable.
+
+### Calendar Month Navigation
+
+The `<` `>` buttons in the calendar header move the calendar up to 4 months back or forward (`CALENDAR_NAV_MONTHS`). Only the calendar changes; the rest of the dashboard stays on the current month. A month is fetched with `GetCalendarMonth(year, monthIdx)` the first time it's shown (reading the previous/next year tab only when the grid reaches it) and kept in memory after that. Future days show their planned type (vacation, holiday, on call day off) when the cell already has one.
 
 ### Google Sheet Layout
 <div style="text-align: center;">
@@ -223,13 +228,13 @@ Tokens are never hardcoded in source. After deploying the Apps Script project, s
 | File | Responsibility |
 |------|---------------|
 | `NfcRelay.js` | `doGet` entry point, auth, theme selection, template rendering |
-| `Main.js` | `BuildPageData`, `GetFreshData`, `SetDayType` (manual day edit); cache check and page data assembly |
+| `Main.js` | `BuildPageData`, `GetFreshData`, `SetDayType` (manual day edit), `GetCalendarMonth` (calendar navigation); cache check and page data assembly |
 | `CacheHelper.js` | PropertiesService-backed daily cache (read, write, validate, rebuild) |
 | `DataAssembler.js` | `BuildStatsData` turns a SheetBundle into rings/days/calendar/charts |
 | `SheetHelper.js` | Sheet connection, bulk data load (`LoadSheetBundle`), cheat-sheet parsing |
 | `CellHelper.js` | Cell address calculation, day-cell read/write, status resolution |
 | `DateHelper.js` | ISO week utilities |
-| `CalendarHelper.js` | Calendar month builder |
+| `CalendarHelper.js` | Calendar month builder (page-load month and on-demand months) |
 | `WeekHelper.js` | Week tab chart data and days card |
 | `MonthHelper.js` | Month tab chart data |
 | `YearHelper.js` | Year tab chart data and YTD stats |

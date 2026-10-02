@@ -1,5 +1,11 @@
     <div class="card calendar-card">
-      <div class="cal-header"><div class="cal-title"><?= data.calendar.monthLabel ?></div></div>
+      <div class="cal-header">
+        <div class="cal-title"><?= data.calendar.monthLabel ?></div>
+        <div class="cal-nav">
+          <button type="button" class="cal-nav-btn" id="cal-prev" onclick="navCalendar(-1)" aria-label="Previous month">&lt;</button>
+          <button type="button" class="cal-nav-btn" id="cal-next" onclick="navCalendar(1)" aria-label="Next month">&gt;</button>
+        </div>
+      </div>
       <div class="cal-grid" id="cal-o"></div>
       <div class="cal-legend">
         <div class="legend-item"><div class="legend-dot d-office"></div>Office</div>

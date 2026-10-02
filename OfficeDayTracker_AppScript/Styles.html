@@ -156,6 +156,15 @@
     .calendar-card { display: flex; flex-direction: column; justify-content: center; height: 100%; position: relative; }
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .cal-title  { font-size: 15px; font-weight: 700; }
+    .cal-nav    { display: flex; gap: 4px; }
+    .cal-nav-btn {
+      width: 28px; height: 28px; border: none; border-radius: 8px;
+      background: transparent; color: var(--muted);
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .cal-nav-btn:hover:not(:disabled) { background: var(--separator); color: var(--accent); }
+    .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .calendar-card.cal-loading .cal-grid { opacity: 0.45; pointer-events: none; }
     .cal-grid   { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .cal-day-name { text-align: center; font-size: 10px; font-weight: 600; color: var(--muted); padding: 4px 0; }
     .cal-day {

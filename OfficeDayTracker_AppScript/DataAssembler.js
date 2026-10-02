@@ -22,7 +22,6 @@ function BuildStatsData(bundle, weekNumber, dayOfWeek, year, monthIdx) {
   const needed            = GetDaysNeeded(bundle, baseWW, weekNumber, dayOfWeek);
 
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-  const calFirst    = GetISOWeekForDate(new Date(year, monthIdx, 1));
   const calLast     = GetISOWeekForDate(new Date(year, monthIdx, daysInMonth));
 
   // Extend range to cover both pill weeks (baseWW and baseWW+1)
@@ -71,7 +70,7 @@ function BuildStatsData(bundle, weekNumber, dayOfWeek, year, monthIdx) {
 
   const rings    = BuildRingsData(stats, ytd, workDaysElapsedYTD, workDaysInCurrentMonth, goalTarget, weekGoal, yearToDateAverage, monthlyGoal);
   const days     = BuildDaysData(needed, weekNumber, ytd, annualTarget, weeksRemaining, monthIdx, year, shiftPillsForward, pillAbsence);
-  const calendar = BuildCalendarData(allWeekData, year, monthIdx, calFirst, calLast);
+  const calendar = BuildCalendarData(CalLookupFromWeekData(allWeekData, year), year, monthIdx);
   const charts   = BuildChartsData(allWeekData, weekNumber, dayOfWeek, weekGoal, beltData, monthly, year, monthIdx, startColWW1, priorYearData);
 
   return { rings, days, calendar, charts };
